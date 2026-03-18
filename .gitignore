@@ -1,0 +1,7 @@
+.build/
+misc/
+*.pdb
+*.obj
+.vscode/
+*.lib
+*.bat
