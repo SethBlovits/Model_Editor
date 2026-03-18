@@ -1,0 +1,28 @@
+{
+    "files.associations": {
+        ".fantomasignore": "ignore",
+        "*.shader": "hlsl",
+        "*.cpp": "cpp",
+        "cstddef": "cpp",
+        "cstdint": "cpp",
+        "cstdlib": "cpp",
+        "cstring": "cpp",
+        "exception": "cpp",
+        "new": "cpp",
+        "type_traits": "cpp",
+        "xtr1common": "cpp",
+        "xstring": "cpp",
+        "string": "cpp",
+        "utility": "cpp",
+        "atomic": "c",
+        "compare": "c",
+        "limits": "c",
+        "memory": "c",
+        "vector": "c",
+        "xmemory": "c",
+        "xutility": "c",
+        "concepts": "c",
+        "d3dcompiler.h": "c",
+        "stdbool.h": "c"
+    }
+}
