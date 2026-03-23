@@ -13,7 +13,11 @@
 #define SLUGS_IMGUI_IMPLEMENTATION
 #include "slugs_imgui.h"
 #include "mathUtil.h"
+#include "modelData.h"
+
+
 #include "offscreen_pass_hlsl.h"
+#include "ubershader_hlsl.h"
 
 #define APP_WIDTH 1920
 #define APP_HEIGHT 1080
@@ -101,6 +105,15 @@ typedef struct{
     int num_lights;
     float padding[3];
 }light_sources;
+typedef struct{
+    int has_skinning;
+    int has_tangents;
+    int has_albedo;
+    int has_specular;
+    int has_normal_map;
+    int has_emissive;
+    int has_metallic_roughness;
+}feature_flags;
 
 light main_light;
 slg_buffer light_buffer;
@@ -112,12 +125,16 @@ struct{
     int new_height;
 }pass_resize;
 
-
 struct{
     slg_texture albedo;
     slg_render_texture normal;
 }object_textures;
 
+
+slg_buffer ubershader_vert_buffer;
+slg_buffer ubershader_index_buffer;
+slg_bindings ubershader_bindings; //this so we can make the generic bindings as we swap in the new info
+slg_pipeline ubershader_pip;
 
 void init(){
     uint8_t arena_backingBuffer[131072];
@@ -262,7 +279,7 @@ void init(){
         .buffer_stride = sizeof(light_sources),
         .usage = SLG_BUFFER_USAGE_CONSTANT_BUFFER
     });
-
+ 
     slg_bindings offscreen_bindings = slg_make_bindings(&(slg_bindings_desc){
         .index_buffer = index_buffer,
         .vertex_buffer = vertex_buffer,
@@ -339,8 +356,49 @@ bool is_mouse_inside_widget(ImVec2 start_pos, ImVec2 size){
 }
 
 //breakout function for the material editor code;;
-void material_editor(){
+void load_gltf(char* path, int path_size){
+    //this function pulls model data from a gltf file it can get the buffers and the all the rest of the data
+    GLTF_Data gltf_model = getDataFromGltf(path, path_size);
+    int break_point = 0;
 
+    ubershader_vert_buffer = slg_make_buffer(&(slg_buffer_desc){
+        .buffer = gltf_model.model_buffers.combinedVertBuffer,
+        .buffer_size = gltf_model.model_buffers.vbuffer_size,
+        .buffer_stride = sizeof(Vertex_t)
+    });
+
+    ubershader_index_buffer = slg_make_buffer(&(slg_buffer_desc){
+        .buffer = gltf_model.model_buffers.combinedIndexBuffer,
+        .buffer_size = gltf_model.model_buffers.ibuffer_size,
+        .buffer_stride = sizeof(uint16_t)
+    });
+
+    feature_flags flags = {0};
+    if(gltf_model.model.numberOfAnimations> 0){
+        flags.has_skinning = 1;
+    }
+    //this is only a temporary fix for models that have only 1 material
+    //support is needed for models with multiple meshes that have different materials per mesh
+    if(gltf_model.model.numberOfMaterials > 0){
+        flags.has_albedo = gltf_model.model.materials[0].hasBaseColor;
+        flags.has_emissive = gltf_model.model.materials[0].hasEmissive;
+        flags.has_metallic_roughness = gltf_model.model.materials[0].hasMetallic;
+        flags.has_normal_map = gltf_model.model.materials[0].hasNormal;
+        flags.has_specular = gltf_model.model.materials[0].hasSpecular;
+    }
+    
+   /* slg_bindings ubershader_bindings = slg_make_bindings(&(slg_bindings_desc){
+        .index_buffer = ubershader_index_buffer,
+        .vertex_buffer = ubershader_vert_buffer,
+        .uniforms = UBERSHADER_HLSL_MAKE_UNIFORMS((UBERSHADER_HLSL_UNIFORMS){
+            .FeatureFlags
+        })
+    });*/
+
+
+}
+void material_editor(){
+    
     
     // Remove padding so child is seamless
     igPushStyleVarImVec2(ImGuiStyleVar_WindowPadding, (ImVec2){0, 0});
@@ -565,12 +623,13 @@ void frame(){
         if(igMenuItem("Open")){
             char path[MAX_PATH];
             app_open_file_dialog(path,MAX_PATH);
-
             //implement more behavior once i decide on my file format
         }
         if(igMenuItem("Import")){
             char path[MAX_PATH];
             app_open_file_dialog(path,MAX_PATH);
+            load_gltf(path,MAX_PATH);
+            
         }
         if(igMenuItem("Save")){
             //do nothing yet
