@@ -33,7 +33,7 @@
  *
  * `void cgltf_free(cgltf_data*)` frees the allocated `cgltf_data`
  * variable.
- *
+ * 
  * `cgltf_result cgltf_load_buffers(const cgltf_options*, cgltf_data*,
  * const char* gltf_path)` can be optionally called to open and read buffer
  * files using the `FILE*` APIs. The `gltf_path` argument is the path to

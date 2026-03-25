@@ -468,7 +468,7 @@ void parsePrimitives(cgltf_primitive *primitives,int numPrimitives,Mesh_t *mesh,
                 for(int z = 0;z<accessorSize;z++){
                     Vector4 testVector = jointVectors[z];
                     if(testVector.x == 0){
-                        printf("debug");
+                        //printf("debug");
                     }
                 }
                 
@@ -542,7 +542,7 @@ void parsePrimitives(cgltf_primitive *primitives,int numPrimitives,Mesh_t *mesh,
             }
             
             calculateNormalsFromVertex(mesh->primitives[i].struct_vertex_buffer,size);
-            printf("test");
+            //printf("test");
             //mesh->primitives->normal_buffer_size = size;
         }
         //createCombinedBuffer(&mesh->primitives[i]);
@@ -646,7 +646,7 @@ void parseNodes(cgltf_node *nodes,cgltf_data *data,Model_t *model){
             }
         }
         Node_t testNode = model->nodes[i];
-        printf("break");
+        //printf("break");
     }
 }
 Vector4 interpolateAnim(int interpolateEnum,float currentTime,float previousTime,float nextTime,Vector4 previousTransform,Vector4 nextTransform){
@@ -745,7 +745,7 @@ void parseAnimations(cgltf_animation *animations,int animationCount,cgltf_data *
             //memcpy(model->animations[i].channels[c].sampler.sampler_transform,outputFloats,size*sizeof(float));
             
             
-            printf("debug");
+            //printf("debug");
             
         }
        
@@ -755,7 +755,7 @@ void parseAnimations(cgltf_animation *animations,int animationCount,cgltf_data *
         
         
         
-        printf("pausing for debug");
+        //printf("pausing for debug");
     }
 }
 void parseSkins(cgltf_skin *skins, int skinCount,Model_t *model){
@@ -783,7 +783,7 @@ void parseSkins(cgltf_skin *skins, int skinCount,Model_t *model){
                 
             }
         }   
-        printf("pause");
+        //printf("pause");
         //cgltf_accessor *joint_matrix = skins[i].joints;
         //int accessorSize = joint_matrix->count;
         //cgltf_float *bindMatrixFloats = arena_alloc(&modelArena,accessorSize*sizeof(float));
@@ -897,7 +897,7 @@ GLTF_Data getDataFromGltf(char *path, int path_size){
         for(int i =0;i<data->images_count;i++){
             cgltf_image testImage = data->images[i];
             
-            printf("pause");
+            //printf("pause");
         }
       
     }
@@ -940,7 +940,7 @@ void fillCombinedIndexBuffer(uint16_t *buff,uint16_t size,Model_t model,int *off
                     int smallIndexSize = model.nodes[n].meshes[m].primitives[p].index_buffer_size;
                     for(int i =0;i<smallIndexSize;i++){
                         int test = model.nodes[n].meshes[m].primitives[p].index_buffer[i];
-                        printf("debugging");
+                        //printf("debugging");
                     }
                     memcpy((char*)buff + indexBufferOffset,model.nodes[n].meshes[m].primitives[p].index_buffer,smallIndexSize*sizeof(uint16_t));
                     indexBufferOffset += smallIndexSize;
@@ -1070,9 +1070,9 @@ void playAnimation(Animation_t animation,float currentTime,Node_t *nodes){
                 float biggerTime = sampler.sampler_time[t];
                 float interpolationTime = (currentTime - smallerTime)/(biggerTime-smallerTime);
                 if(interpolationTime>1){
-                    printf("breakpoint");
+                    //printf("breakpoint");
                 }
-                printf("debug");
+                //printf("debug");
                 //we need to collect the two sampler times as well as the data points
                 //and interpolate them depending upon the the time
                 switch(transformType){
@@ -1173,7 +1173,7 @@ void recalculateSkinningMatrix(Node_t *nodes,int numberOfNodes,skinMatrix_t *ski
             for(int c = 0;c<numberOfChildren;c++){
                 int childIndex = nodes[i].childIndices[c];
                 calculateChildRecursive(nodes,childIndex);
-                printf("test");
+                //printf("test");
             }
         }
     }
@@ -1182,11 +1182,11 @@ void recalculateSkinningMatrix(Node_t *nodes,int numberOfNodes,skinMatrix_t *ski
         Node_t node = nodes[i];
         if(strcmp(nodes[i].name,"b_RightLeg01_019") == 0){
             Mat4 skin = skinMatrix[i].skinMatrix;
-            printf("pause");
+            //printf("pause");
         //printf("pause"); 
         }
         
-        printf("pause");
+        //printf("pause");
     }
 }
 void recalculateLocalTransformMatrix(Node_t *nodes,int numberOfNodes){
@@ -1197,7 +1197,7 @@ void recalculateLocalTransformMatrix(Node_t *nodes,int numberOfNodes){
         Mat4 transformTest =  nodes[i].transformMatrix;
         nodes[i].transformMatrix = TRSMat4(translation,rotation,scale);
         Mat4 transformTest2 = nodes[i].transformMatrix;
-        printf("debug");
+        //printf("debug");
     }
 }
 void fillModelBuffers(Model_t *model,ModelBuffers_t *modelBuffers){// we should use memory arenas here

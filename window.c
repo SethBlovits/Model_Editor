@@ -142,6 +142,12 @@ slg_pipeline ubershader_pip;
 Arena gltf_load_arena;
 uint8_t gltf_load_arena_backing_buffer[1048576];
 
+Vertex* fox_vertex;
+size_t fox_vertex_size;  
+uint16_t* fox_index;
+size_t fox_index_size;
+
+
 void load_gltf(char* path, int path_size);
 void init(){
 
@@ -230,7 +236,7 @@ void init(){
 
     Mat4 mvpMat4 = identityMat4();
     Mat4 m_model = identityMat4();
-    
+    m_model = scaledMat4(m_model,(Vector3){0.1f,0.1f,0.1f});
     offscreen_camera.position = (Vector3){0.0f,0.0f,10.0f};
     offscreen_camera.target = (Vector3){0.0f,0.0f,0.0f};
     offscreen_camera.direction = normalizeVec3(subtractVec3(offscreen_camera.position,offscreen_camera.target));
@@ -261,7 +267,8 @@ void init(){
         .shader = slg_make_shader(&OFFSCREEN_PASS_SHADER_DESC),
         .depth_stencil_desc.depth_enable = true,
         .depth_stencil_desc.write_mask = SLG_DEPTH_WRITE_MASK_ALL,
-        .depth_stencil_desc.compare_func = SLG_COMPARISON_FUNC_LESS
+        .depth_stencil_desc.compare_func = SLG_COMPARISON_FUNC_LESS,
+        .rasterizer_desc.facewinding_mode = SLG_FACEWINDING_CLOCKWISE
     });
 
    Transform_Matrices.model_mat = m_model;
@@ -290,7 +297,22 @@ void init(){
         .buffer_stride = sizeof(light_sources),
         .usage = SLG_BUFFER_USAGE_CONSTANT_BUFFER
     });
- 
+   
+
+   
+    /*for(int i = 0; i < fox_vertex_size/sizeof(Vertex); i++){
+        printf("vert %d: pos = %f %f %f\n", i, fox_vertex[i].position.x, fox_vertex[i].position.y, fox_vertex[i].position.z);
+    }
+    slg_buffer fox_index_buffer = slg_make_buffer(&(slg_buffer_desc){
+        .buffer = fox_index,
+        .buffer_size = fox_index_size,
+        .buffer_stride = sizeof(uint16_t),
+    });
+    slg_buffer fox_vertex_buffer = slg_make_buffer(&(slg_buffer_desc){
+        .buffer = fox_vertex,
+        .buffer_size = fox_vertex_size,
+        .buffer_stride = sizeof(Vertex)
+    });*/
     slg_bindings offscreen_bindings = slg_make_bindings(&(slg_bindings_desc){
         .index_buffer = index_buffer,
         .vertex_buffer = vertex_buffer,
@@ -375,16 +397,29 @@ void load_gltf(char* path, int path_size){
     //this function pulls model data from a gltf file it can get the buffers and the all the rest of the data
     GLTF_Data gltf_model = getDataFromGltf(path, path_size);
     int break_point = 0;
+    fox_vertex_size = (gltf_model.model_buffers.vbuffer_size*sizeof(Vertex));
+    fox_index_size = gltf_model.model_buffers.ibuffer_size*sizeof(uint16_t);
+    fox_vertex = arena_alloc(&gltf_load_arena,gltf_model.model_buffers.vbuffer_size * sizeof(Vertex));
+    fox_index = arena_alloc(&gltf_load_arena,gltf_model.model_buffers.ibuffer_size * sizeof(uint16_t));
+
+    for(int i = 0;i<gltf_model.model_buffers.vbuffer_size;i++){
+        fox_vertex[i].position = gltf_model.model_buffers.combinedVertBuffer[i].position;
+        fox_vertex[i].normal = gltf_model.model_buffers.combinedVertBuffer[i].normal;
+        fox_vertex[i].uv = gltf_model.model_buffers.combinedVertBuffer[i].uv;
+    }
+    for(int i = 0; i < gltf_model.model_buffers.ibuffer_size;i++){
+        fox_index[i] = gltf_model.model_buffers.combinedIndexBuffer[i];
+    }
 
     ubershader_vert_buffer = slg_make_buffer(&(slg_buffer_desc){
         .buffer = gltf_model.model_buffers.combinedVertBuffer,
-        .buffer_size = gltf_model.model_buffers.vbuffer_size,
+        .buffer_size = gltf_model.model_buffers.vbuffer_size * sizeof(Vertex_t),
         .buffer_stride = sizeof(Vertex_t)
     });
 
     ubershader_index_buffer = slg_make_buffer(&(slg_buffer_desc){
         .buffer = gltf_model.model_buffers.combinedIndexBuffer,
-        .buffer_size = gltf_model.model_buffers.ibuffer_size,
+        .buffer_size = gltf_model.model_buffers.ibuffer_size * sizeof(uint16_t),
         .buffer_stride = sizeof(uint16_t)
     });
 
@@ -449,7 +484,7 @@ void load_gltf(char* path, int path_size){
         int png_width, png_height, num_channels;
         const int desired_channels = 4;
         pixels_albedo = stbi_load(gltf_model.model.materials[0].baseColorUri,&png_width,&png_height,&num_channels,desired_channels);
-       
+        
         albedo_used = slg_make_texture(&(slg_texture_desc){
             .height = png_height,
             .width = png_width,
@@ -457,6 +492,8 @@ void load_gltf(char* path, int path_size){
             .tex_type = SLG_TEXTURE_TYPE_2D,
             .texture = pixels_albedo 
         });
+
+        stbi_image_free(pixels_albedo);
     }
     //work around to fix incorrect directory issue
     app_reset_working_directory();    
@@ -465,7 +502,7 @@ void load_gltf(char* path, int path_size){
         .depth_stencil_desc.depth_enable = true,
         .depth_stencil_desc.write_mask = SLG_DEPTH_WRITE_MASK_ALL,
         .depth_stencil_desc.compare_func = SLG_COMPARISON_FUNC_LESS,
-        .rasterizer_desc.cull_mode = SLG_CULL_MODE_NONE
+        .rasterizer_desc.cull_mode = SLG_FACEWINDING_CLOCKWISE
     });
 
     ubershader_bindings = slg_make_bindings(&(slg_bindings_desc){
@@ -481,7 +518,6 @@ void load_gltf(char* path, int path_size){
     });
     offscreen_pass.pip = ubershader_pip;
     offscreen_pass.bind = ubershader_bindings;
-    stbi_image_free(pixels_albedo);
 
 }
 void material_editor(){
@@ -680,7 +716,6 @@ void frame(){
     //Transform_Matrices.model_mat = rotateMat4Version2(,);
     Transform_Matrices.model_mat = mulMat4(rot_x,Transform_Matrices.model_mat);
     Transform_Matrices.model_mat = mulMat4(rot_y,Transform_Matrices.model_mat);
-   //Transform_Matrices.model_mat = scaledMat4(Transform_Matrices.model_mat,(Vector3){0.1f,0.1f,0.1f});
 
     Transform_Matrices.normal_mat = inverseMat4(transposeMat4(Transform_Matrices.model_mat));
     if(pass_resize.changed_resolution){
