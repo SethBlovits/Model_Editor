@@ -126,7 +126,7 @@ float4 PSMain(PSInput input) : SV_TARGET
         //total_lighting = light_dir;
     }
     
-    return color * float4(total_lighting,1.0f); //+ float4(normal.xyz,1.0f);
+    return (color * float4(total_lighting,1.0f))*0.01f + float4(1.0f,0.0f,0.0f,1.0f) ; //+ float4(normal.xyz,1.0f);
     
      
     

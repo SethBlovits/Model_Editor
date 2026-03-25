@@ -1,6 +1,9 @@
 
 #include <windows.h>
 #include <stdbool.h>
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 #define APP_UTILITY_IMPLEMENTATION
 #include "app_utility.h"
 //#include <d3d12.h>
@@ -136,10 +139,18 @@ slg_buffer ubershader_index_buffer;
 slg_bindings ubershader_bindings; //this so we can make the generic bindings as we swap in the new info
 slg_pipeline ubershader_pip;
 
+Arena gltf_load_arena;
+uint8_t gltf_load_arena_backing_buffer[1048576];
+
+void load_gltf(char* path, int path_size);
 void init(){
-    uint8_t arena_backingBuffer[131072];
-    arena_init(&slg_arena,arena_backingBuffer,131072);
-    slg_arena.name = "main_arena";
+
+    //uint8_t arena_backingBuffer[131072];
+    //arena_init(&slg_arena,arena_backingBuffer,131072);
+
+    arena_init(&gltf_load_arena,gltf_load_arena_backing_buffer,1048576);
+    gltf_load_arena.name = "gltf_arena";
+    //slg_arena.name = "main_arena";
     slg_d3d12_state.appdata.width = APP_WIDTH;
     slg_d3d12_state.appdata.height = APP_HEIGHT;
     slg_d3d12_state.appdata.name = "test app";
@@ -290,12 +301,14 @@ void init(){
         })
     });
 
+
     //THESE ARE THE THINGS WE NEED TO RENDER INTO THE OFFSCREEN PASS
     offscreen_pass.color_target = color_render_target;
     offscreen_pass.depth_target = depth_render_target;
     offscreen_pass.bind = offscreen_bindings;
     offscreen_pass.pip = offscreen_pip; 
-  
+    
+    load_gltf("C:\\MaterialEditor\\test_gltf\\Fox.gltf",MAX_PATH);
     slg_close_setup();
 
     igStyleColorsDark(igGetStyle());
@@ -357,6 +370,8 @@ bool is_mouse_inside_widget(ImVec2 start_pos, ImVec2 size){
 
 //breakout function for the material editor code;;
 void load_gltf(char* path, int path_size){
+    //load gltf arena
+    SetCurrentDirectory("C:\\MaterialEditor\\test_gltf");
     //this function pulls model data from a gltf file it can get the buffers and the all the rest of the data
     GLTF_Data gltf_model = getDataFromGltf(path, path_size);
     int break_point = 0;
@@ -374,9 +389,33 @@ void load_gltf(char* path, int path_size){
     });
 
     feature_flags flags = {0};
+    Mat4* skin_matrix;
+    slg_buffer skin_buffer;
     if(gltf_model.model.numberOfAnimations> 0){
         flags.has_skinning = 1;
+        skin_matrix = arena_alloc(&gltf_load_arena,gltf_model.model.numberOfNodes * sizeof(Mat4)); 
+        recalculateLocalTransformMatrix(gltf_model.model.nodes,gltf_model.model.numberOfNodes);
+        recalculateSkinningMatrix(gltf_model.model.nodes,gltf_model.model.numberOfNodes,(skinMatrix_t*)skin_matrix);
+        skin_buffer = slg_make_buffer(&(slg_buffer_desc){
+            .buffer = (void*)skin_matrix,
+            .buffer_size = gltf_model.model.numberOfNodes * sizeof(Mat4),
+            .buffer_stride = sizeof(Mat4),
+            .usage = SLG_BUFFER_USAGE_CONSTANT_BUFFER
+        });
     }
+    else{
+        skin_matrix = arena_alloc(&gltf_load_arena,sizeof(Mat4));
+        skin_matrix[0] = identityMat4();
+        skin_buffer = slg_make_buffer(&(slg_buffer_desc){
+            .buffer = (void*)skin_matrix,
+            .buffer_size = sizeof(Mat4),
+            .buffer_stride = sizeof(Mat4),
+            .usage = SLG_BUFFER_USAGE_CONSTANT_BUFFER
+        }); 
+    }
+    //for now set skinning to be 0
+    flags.has_skinning = 0;
+
     //this is only a temporary fix for models that have only 1 material
     //support is needed for models with multiple meshes that have different materials per mesh
     if(gltf_model.model.numberOfMaterials > 0){
@@ -387,14 +426,62 @@ void load_gltf(char* path, int path_size){
         flags.has_specular = gltf_model.model.materials[0].hasSpecular;
     }
     
-   /* slg_bindings ubershader_bindings = slg_make_bindings(&(slg_bindings_desc){
+    slg_buffer flags_buffer = slg_make_buffer(&(slg_buffer_desc){
+        .buffer = (void*)&flags,
+        .buffer_size = sizeof(flags),
+        .buffer_stride = sizeof(flags),
+        .usage = SLG_BUFFER_USAGE_CONSTANT_BUFFER
+    });
+    uint32_t default_pixel = 0xFFFFFFFF;
+    slg_texture default_texture = slg_make_texture(&(slg_texture_desc){
+        .height = 1,
+        .width = 1,
+        .pixel_size = 4,
+        .tex_type = SLG_TEXTURE_TYPE_2D,
+        .texture = (void*)&default_pixel 
+    });
+    slg_texture albedo_used;
+    stbi_uc* pixels_albedo;
+    if(!flags.has_albedo){
+        albedo_used = default_texture;
+    } 
+    else{
+        int png_width, png_height, num_channels;
+        const int desired_channels = 4;
+        pixels_albedo = stbi_load(gltf_model.model.materials[0].baseColorUri,&png_width,&png_height,&num_channels,desired_channels);
+       
+        albedo_used = slg_make_texture(&(slg_texture_desc){
+            .height = png_height,
+            .width = png_width,
+            .pixel_size = desired_channels,
+            .tex_type = SLG_TEXTURE_TYPE_2D,
+            .texture = pixels_albedo 
+        });
+    }
+    //work around to fix incorrect directory issue
+    app_reset_working_directory();    
+    ubershader_pip = slg_make_pipeline(&(slg_pipeline_desc){
+        .shader = slg_make_shader(&UBERSHADER_SHADER_DESC),
+        .depth_stencil_desc.depth_enable = true,
+        .depth_stencil_desc.write_mask = SLG_DEPTH_WRITE_MASK_ALL,
+        .depth_stencil_desc.compare_func = SLG_COMPARISON_FUNC_LESS,
+        .rasterizer_desc.cull_mode = SLG_CULL_MODE_NONE
+    });
+
+    ubershader_bindings = slg_make_bindings(&(slg_bindings_desc){
         .index_buffer = ubershader_index_buffer,
         .vertex_buffer = ubershader_vert_buffer,
         .uniforms = UBERSHADER_HLSL_MAKE_UNIFORMS((UBERSHADER_HLSL_UNIFORMS){
-            .FeatureFlags
+            .FeatureFlags = flags_buffer,
+            .TransformBuffer = transform_buffer,
+            .LightPositions = light_buffer,
+            .albedo = albedo_used,
+            .jointMat = skin_buffer
         })
-    });*/
-
+    });
+    offscreen_pass.pip = ubershader_pip;
+    offscreen_pass.bind = ubershader_bindings;
+    stbi_image_free(pixels_albedo);
 
 }
 void material_editor(){
@@ -445,6 +532,11 @@ void material_editor(){
             igSliderFloat("Light X", &main_light.position.Elements[0], -20.0f, 20.0f);
             igSliderFloat("Light Y", &main_light.position.Elements[1], -20.0f, 20.0f);
             igSliderFloat("Light Z", &main_light.position.Elements[2], -20.0f, 20.0f);
+
+            igSliderFloat("Camera Pos X", &offscreen_camera.position.x,-50.0f,50.0f);
+            igSliderFloat("Camera Pos Y", &offscreen_camera.position.y,-50.0f,50.0f);
+            igSliderFloat("Camera Pos Z", &offscreen_camera.position.z,-50.0f,50.0f);
+
             igPopStyleVarEx(2);
             float delta_time = app_get_delta_time();
             igText("Left Mouse Down: %d",igIsMouseDown(ImGuiMouseButton_Left));
@@ -588,10 +680,13 @@ void frame(){
     //Transform_Matrices.model_mat = rotateMat4Version2(,);
     Transform_Matrices.model_mat = mulMat4(rot_x,Transform_Matrices.model_mat);
     Transform_Matrices.model_mat = mulMat4(rot_y,Transform_Matrices.model_mat);
+   //Transform_Matrices.model_mat = scaledMat4(Transform_Matrices.model_mat,(Vector3){0.1f,0.1f,0.1f});
 
     Transform_Matrices.normal_mat = inverseMat4(transposeMat4(Transform_Matrices.model_mat));
     if(pass_resize.changed_resolution){
         float new_aspect = (float)pass_resize.new_width/(float)pass_resize.new_height;
+        Vector3 up = {0.0f,1.0f,0.0f};
+        offscreen_camera.view = LookAt_RH_Version2(offscreen_camera.position,(Vector3){0.0f,0.0f,0.0f},up);
         offscreen_camera.projection = perspectiveMat4_Z0(1.0472f,new_aspect,0.1f,100.0f);
         Transform_Matrices.mvp_mat = mulMat4(mulMat4(offscreen_camera.projection,offscreen_camera.view),Transform_Matrices.model_mat);
         slg_update_buffer(transform_buffer,(void*)&Transform_Matrices,sizeof(Transform_Matrices));
@@ -601,13 +696,15 @@ void frame(){
         pass_resize.changed_resolution = false;
     }
     else{
+        Vector3 up = {0.0f,1.0f,0.0f};
+        offscreen_camera.view = LookAt_RH_Version2(offscreen_camera.position,(Vector3){0.0f,0.0f,0.0f},up);
         Transform_Matrices.mvp_mat = mulMat4(mulMat4(offscreen_camera.projection,offscreen_camera.view),Transform_Matrices.model_mat);
         slg_update_buffer(transform_buffer,(void*)&Transform_Matrices,sizeof(Transform_Matrices));
     }
     slg_begin_offscreen_pass(&offscreen_pass);
     slg_set_pipeline(&offscreen_pass.pip);
     slg_set_bindings(&offscreen_pass.bind);
-    slg_draw(36,1,0,0,0);
+    slg_draw(offscreen_pass.bind.data_ptr->index_buffer.size_in_bytes/offscreen_pass.bind.data_ptr->index_buffer.stride,1,0,0,0);
     slg_end_offscreen_pass(&offscreen_pass);
     
     //I think it would look something like this

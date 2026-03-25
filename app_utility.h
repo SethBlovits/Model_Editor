@@ -123,6 +123,7 @@ typedef struct{
 struct app_data_t{
     HWND hwnd;
     UINT app_dpi;
+    char app_working_directory[MAX_PATH];
 }app_data_d3d12;
 #endif
 
@@ -419,6 +420,13 @@ LRESULT CALLBACK _event_callback_Win32(HWND hwnd,UINT msg,WPARAM wParam,LPARAM l
     return 0;
 }
 
+void _app_init_working_directory_Win32(){
+    GetCurrentDirectory(MAX_PATH,app_data_d3d12.app_working_directory);
+}
+
+void _app_reset_working_directory_Win32(){
+    SetCurrentDirectory(app_data_d3d12.app_working_directory);
+}
 //public functions
 void app_open_file_dialog(char* out_path,long out_size){
     #ifdef _WIN32
@@ -426,9 +434,15 @@ void app_open_file_dialog(char* out_path,long out_size){
     #endif
 }
 
+
 HWND app_get_window_handle(){
     #ifdef _WIN32 
     return app_data_d3d12.hwnd;
+    #endif
+}
+void app_reset_working_directory(){
+    #ifdef _WIN32
+    _app_reset_working_directory_Win32();
     #endif
 }
 
@@ -450,6 +464,7 @@ void app_init(app_desc_t app_desc){
     
     #ifdef _WIN32
     _create_window_Win32(app_desc.width,app_desc.height);
+    _app_init_working_directory_Win32();
     #endif
     app_init_func();
 }

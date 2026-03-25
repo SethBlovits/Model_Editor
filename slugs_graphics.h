@@ -2381,7 +2381,7 @@ slg_bindings _slg_d3d12_make_bindings(slg_bindings_desc* bind_desc){
     int resource_count = 0;
     bool found_resource = false;
     for(int i =0;i<SLG_MAX_ROOT_PARAMETERS;i++){
-        if(bind_desc->uniforms.cbv_buffer[i].buffer != NULL){
+        if(bind_desc->uniforms.cbv_buffer[i].buffer != NULL){ 
             D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {0};
             cbvDesc.BufferLocation = bind_desc->uniforms.cbv_buffer[i].buffer->lpVtbl->GetGPUVirtualAddress(bind_desc->uniforms.cbv_buffer[i].buffer);
             cbvDesc.SizeInBytes = (bind_desc->uniforms.cbv_buffer[i].size_in_bytes + 255) & ~255;
