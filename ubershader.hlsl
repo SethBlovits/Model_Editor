@@ -46,6 +46,7 @@ cbuffer FeatureFlags : register(b3){
     int has_emissive;
     int has_specular;
     int has_metallic_roughness;
+    int _pad; // pad to 32 bytes
 }
 Texture2D albedo : register(t0);
 Texture2D normal_map : register(t1);
@@ -95,7 +96,8 @@ PSInput VSMain(VSInput input)
         result.position  = mul(mvpMatrix, float4(input.position, 1.0f));
         result.world_pos = mul(modelMatrix, float4(input.position, 1.0f)).xyz;
     }
-    
+    //result.position  = mul(mvpMatrix, float4(input.position, 1.0f));
+    //result.world_pos = mul(modelMatrix, float4(input.position, 1.0f)).xyz;
     result.normal = mul((float3x3)normalMatrix,input.normal);
     result.uv = input.uv;
 
@@ -106,7 +108,7 @@ float4 PSMain(PSInput input) : SV_TARGET
 {   
 
     float3 normal = input.normal; //Normal value for the pixel
-    float3 position = input.position.xyz; //Postion value for the pixel
+    //float3 position = input.position.xyz; //Postion value for the pixel
     float4 color = albedo.Sample(g_sampler,input.uv);
     //this is going to be used sum up the effect of all the lights for each light ON THE PIXEL
     //this is a color, so it will be effected by specular color, diffuse color, light color, etc

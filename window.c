@@ -21,6 +21,7 @@
 
 #include "offscreen_pass_hlsl.h"
 #include "ubershader_hlsl.h"
+#include "ubshader_debug_hlsl.h"
 
 #define APP_WIDTH 1920
 #define APP_HEIGHT 1080
@@ -116,6 +117,7 @@ typedef struct{
     int has_normal_map;
     int has_emissive;
     int has_metallic_roughness;
+    int pad;
 }feature_flags;
 
 light main_light;
@@ -138,6 +140,9 @@ slg_buffer ubershader_vert_buffer;
 slg_buffer ubershader_index_buffer;
 slg_bindings ubershader_bindings; //this so we can make the generic bindings as we swap in the new info
 slg_pipeline ubershader_pip;
+
+slg_pipeline debug_pipeline;
+slg_bindings debug_bindings;
 
 Arena gltf_load_arena;
 uint8_t gltf_load_arena_backing_buffer[1048576];
@@ -302,8 +307,8 @@ void init(){
    
     /*for(int i = 0; i < fox_vertex_size/sizeof(Vertex); i++){
         printf("vert %d: pos = %f %f %f\n", i, fox_vertex[i].position.x, fox_vertex[i].position.y, fox_vertex[i].position.z);
-    }
-    slg_buffer fox_index_buffer = slg_make_buffer(&(slg_buffer_desc){
+    }*/
+    /*slg_buffer fox_index_buffer = slg_make_buffer(&(slg_buffer_desc){
         .buffer = fox_index,
         .buffer_size = fox_index_size,
         .buffer_stride = sizeof(uint16_t),
@@ -410,7 +415,16 @@ void load_gltf(char* path, int path_size){
     for(int i = 0; i < gltf_model.model_buffers.ibuffer_size;i++){
         fox_index[i] = gltf_model.model_buffers.combinedIndexBuffer[i];
     }
-
+    slg_buffer fox_index_buffer = slg_make_buffer(&(slg_buffer_desc){
+        .buffer = fox_index,
+        .buffer_size = fox_index_size,
+        .buffer_stride = sizeof(uint16_t),
+    });
+    slg_buffer fox_vertex_buffer = slg_make_buffer(&(slg_buffer_desc){
+        .buffer = fox_vertex,
+        .buffer_size = fox_vertex_size,
+        .buffer_stride = sizeof(Vertex)
+    });
     ubershader_vert_buffer = slg_make_buffer(&(slg_buffer_desc){
         .buffer = gltf_model.model_buffers.combinedVertBuffer,
         .buffer_size = gltf_model.model_buffers.vbuffer_size * sizeof(Vertex_t),
@@ -497,7 +511,7 @@ void load_gltf(char* path, int path_size){
     }
     //work around to fix incorrect directory issue
     app_reset_working_directory();    
-    ubershader_pip = slg_make_pipeline(&(slg_pipeline_desc){
+    /*ubershader_pip = slg_make_pipeline(&(slg_pipeline_desc){
         .shader = slg_make_shader(&UBERSHADER_SHADER_DESC),
         .depth_stencil_desc.depth_enable = true,
         .depth_stencil_desc.write_mask = SLG_DEPTH_WRITE_MASK_ALL,
@@ -515,9 +529,38 @@ void load_gltf(char* path, int path_size){
             .albedo = albedo_used,
             .jointMat = skin_buffer
         })
+    });*/
+
+    DXGI_FORMAT overrides[] = {
+        DXGI_FORMAT_R32G32B32_FLOAT,
+        DXGI_FORMAT_R32G32B32_FLOAT,
+        DXGI_FORMAT_R32G32_FLOAT,
+        DXGI_FORMAT_R32G32B32_FLOAT,
+        DXGI_FORMAT_R32G32B32_FLOAT
+    };
+    debug_pipeline = slg_make_pipeline(&(slg_pipeline_desc){
+        .shader = slg_make_shader(&UBSHADER_DEBUG_SHADER_DESC),
+        .depth_stencil_desc.depth_enable = true,
+        .depth_stencil_desc.write_mask = SLG_DEPTH_WRITE_MASK_ALL,
+        .depth_stencil_desc.compare_func = SLG_COMPARISON_FUNC_LESS,
+        .rasterizer_desc.cull_mode = SLG_FACEWINDING_CLOCKWISE,
+        .num_overrides = 5,
+        .format_overrides = overrides
     });
-    offscreen_pass.pip = ubershader_pip;
-    offscreen_pass.bind = ubershader_bindings;
+    debug_bindings = slg_make_bindings(&(slg_bindings_desc){
+        .index_buffer = ubershader_index_buffer,
+        .vertex_buffer = ubershader_vert_buffer,
+        .uniforms = UBSHADER_DEBUG_HLSL_MAKE_UNIFORMS((UBSHADER_DEBUG_HLSL_UNIFORMS){
+            //.FeatureFlags = flags_buffer,
+            .TransformBuffer = transform_buffer,
+            .LightPositions = light_buffer,
+            .albedo = albedo_used,
+            //.jointMat = skin_buffer
+        })
+    });
+    
+    offscreen_pass.pip = debug_pipeline;
+    offscreen_pass.bind = debug_bindings;
 
 }
 void material_editor(){

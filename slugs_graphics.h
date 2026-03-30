@@ -1057,7 +1057,7 @@ DXGI_FORMAT _slg_d3d12_D3DCOMPONENTTYPE_to_DXGIFORMAT(D3D_REGISTER_COMPONENT_TYP
         case(D3D_REGISTER_COMPONENT_SINT32):
             switch(mask){
                 case(0x1): return DXGI_FORMAT_R32_SINT;
-                case(0x2): return DXGI_FORMAT_R32G32_SINT;
+                case(0x3): return DXGI_FORMAT_R32G32_SINT;
                 case(0x7): return DXGI_FORMAT_R32G32B32_SINT;
                 case(0xF): return DXGI_FORMAT_R32G32B32A32_SINT; 
             }
@@ -1065,7 +1065,7 @@ DXGI_FORMAT _slg_d3d12_D3DCOMPONENTTYPE_to_DXGIFORMAT(D3D_REGISTER_COMPONENT_TYP
         case(D3D_REGISTER_COMPONENT_UINT32):
             switch(mask){
                 case(0x1): return DXGI_FORMAT_R32_UINT;
-                case(0x2): return DXGI_FORMAT_R32G32_UINT;
+                case(0x3): return DXGI_FORMAT_R32G32_UINT;
                 case(0x7): return DXGI_FORMAT_R32G32B32_UINT;
                 case(0xF): return DXGI_FORMAT_R32G32B32A32_UINT; 
             }
@@ -2106,6 +2106,12 @@ slg_pipeline _slg_d3d12_make_pipeline(slg_pipeline_desc* pipeline_desc){
         input_elements[i].InputSlot = 0;
         input_elements[i].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
         input_elements[i].InstanceDataStepRate = 0;
+        printf("Input %d: semantic=%s mask=0x%X type=%d\n",
+        i,
+        input_parameter_desc[i].SemanticName,
+        input_parameter_desc[i].ReadWriteMask,
+        input_parameter_desc[i].ComponentType
+        );
     }
     
     
