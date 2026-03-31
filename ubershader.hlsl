@@ -37,7 +37,7 @@ cbuffer LightPositions : register(b1) {
 };
 cbuffer jointMat : register(b2){
     column_major float4x4 joint_mat[64]; //64 is maximum joints
-}
+};
 cbuffer FeatureFlags : register(b3){
     int has_skinning;
     int has_tangents;
@@ -47,7 +47,7 @@ cbuffer FeatureFlags : register(b3){
     int has_specular;
     int has_metallic_roughness;
     int _pad; // pad to 32 bytes
-}
+};
 Texture2D albedo : register(t0);
 Texture2D normal_map : register(t1);
 Texture2D tangent_map : register(t2);
@@ -128,8 +128,8 @@ float4 PSMain(PSInput input) : SV_TARGET
         //total_lighting = light_dir;
     }
     
-    return (color * float4(total_lighting,1.0f))*0.01f + float4(1.0f,0.0f,0.0f,1.0f) ; //+ float4(normal.xyz,1.0f);
-    
+    //return (color * float4(total_lighting,1.0f))*0.01f + float4(1.0f,0.0f,0.0f,1.0f) ; //+ float4(normal.xyz,1.0f);
+    return (color * float4(total_lighting,1.0f));
      
     
     //return color;

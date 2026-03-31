@@ -510,13 +510,22 @@ void load_gltf(char* path, int path_size){
         stbi_image_free(pixels_albedo);
     }
     //work around to fix incorrect directory issue
-    app_reset_working_directory();    
+    app_reset_working_directory();
+    DXGI_FORMAT overrides[] = {
+        DXGI_FORMAT_R32G32B32_FLOAT,
+        DXGI_FORMAT_R32G32B32_FLOAT,
+        DXGI_FORMAT_R32G32_FLOAT,
+        DXGI_FORMAT_R32G32B32A32_FLOAT,
+        DXGI_FORMAT_R32G32B32A32_FLOAT
+    };    
     /*ubershader_pip = slg_make_pipeline(&(slg_pipeline_desc){
         .shader = slg_make_shader(&UBERSHADER_SHADER_DESC),
         .depth_stencil_desc.depth_enable = true,
         .depth_stencil_desc.write_mask = SLG_DEPTH_WRITE_MASK_ALL,
         .depth_stencil_desc.compare_func = SLG_COMPARISON_FUNC_LESS,
-        .rasterizer_desc.cull_mode = SLG_FACEWINDING_CLOCKWISE
+        .rasterizer_desc.cull_mode = SLG_FACEWINDING_CLOCKWISE,
+        .num_overrides = 5,
+        .format_overrides = overrides
     });
 
     ubershader_bindings = slg_make_bindings(&(slg_bindings_desc){
@@ -531,13 +540,6 @@ void load_gltf(char* path, int path_size){
         })
     });*/
 
-    DXGI_FORMAT overrides[] = {
-        DXGI_FORMAT_R32G32B32_FLOAT,
-        DXGI_FORMAT_R32G32B32_FLOAT,
-        DXGI_FORMAT_R32G32_FLOAT,
-        DXGI_FORMAT_R32G32B32_FLOAT,
-        DXGI_FORMAT_R32G32B32_FLOAT
-    };
     debug_pipeline = slg_make_pipeline(&(slg_pipeline_desc){
         .shader = slg_make_shader(&UBSHADER_DEBUG_SHADER_DESC),
         .depth_stencil_desc.depth_enable = true,
@@ -551,11 +553,11 @@ void load_gltf(char* path, int path_size){
         .index_buffer = ubershader_index_buffer,
         .vertex_buffer = ubershader_vert_buffer,
         .uniforms = UBSHADER_DEBUG_HLSL_MAKE_UNIFORMS((UBSHADER_DEBUG_HLSL_UNIFORMS){
-            //.FeatureFlags = flags_buffer,
+            .FeatureFlags = flags_buffer,
             .TransformBuffer = transform_buffer,
             .LightPositions = light_buffer,
             .albedo = albedo_used,
-            //.jointMat = skin_buffer
+            .jointMat = skin_buffer
         })
     });
     

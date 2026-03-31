@@ -35,9 +35,10 @@ cbuffer LightPositions : register(b1) {
     int num_lights;  //4 bytes
     float3 aligned_buffer; //12 bytes to align buffer
 };
-/*cbuffer jointMat : register(b2){
-    column_major float4x4 joint_mat[64]; //64 is maximum joints
-}*/
+cbuffer jointMat : register(b2){
+    column_major float4x4 joint_mat[63]; //64 is maximum joints
+};
+
 cbuffer FeatureFlags : register(b3){
     int has_skinning;
     int has_tangents;
@@ -47,7 +48,7 @@ cbuffer FeatureFlags : register(b3){
     int has_specular;
     int has_metallic_roughness;
     int _pad; // pad to 32 bytes
-}
+};
 Texture2D albedo : register(t0);
 Texture2D normal_map : register(t1);
 Texture2D tangent_map : register(t2);
@@ -57,7 +58,7 @@ Texture2D occlusion : register(t5);
 
 SamplerState g_sampler : register(s0);
 
-/*
+
 void calc_skin_pos(in float3 pos, in float4 joint_weight, in float4 joint_index, out float3 skin_pos){
     float4x4 skin_mat = (float4x4)0;
     if(joint_weight.x>0){
@@ -82,11 +83,11 @@ void calc_skin_pos(in float3 pos, in float4 joint_weight, in float4 joint_index,
     }
     skin_pos = mul(skin_mat,float4(pos,1.0f)).xyz;
 }
-*/
+
 PSInput VSMain(VSInput input)
 {
     PSInput result;
-    /*if(has_skinning){
+    if(has_skinning){
         float3 skin_pos;
         calc_skin_pos(input.position,input.joint_weights,input.joint_indices,skin_pos);
         result.position  = mul(mvpMatrix, float4(skin_pos, 1.0f));
@@ -95,9 +96,13 @@ PSInput VSMain(VSInput input)
     else{
         result.position  = mul(mvpMatrix, float4(input.position, 1.0f));
         result.world_pos = mul(modelMatrix, float4(input.position, 1.0f)).xyz;
-    }*/
-    result.position  = mul(mvpMatrix, float4(input.position, 1.0f));
-    result.world_pos = mul(modelMatrix, float4(input.position, 1.0f)).xyz;
+    }
+    float3 skin_pos;
+    //calc_skin_pos(input.position,input.joint_weights,input.joint_indices,skin_pos);
+    //result.position  = mul(mvpMatrix, float4(skin_pos, 1.0f));
+    //result.world_pos = mul(modelMatrix, float4(skin_pos, 1.0f)).xyz;
+    //result.position  = mul(mvpMatrix, float4(input.position, 1.0f));
+    //result.world_pos = mul(modelMatrix, float4(input.position, 1.0f)).xyz;
     result.normal = mul((float3x3)normalMatrix,input.normal);
     result.uv = input.uv;
 

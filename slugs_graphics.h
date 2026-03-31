@@ -2036,7 +2036,28 @@ slg_depth_texture _slg_d3d12_make_depth_texture(UINT width, UINT height){
     
     return* depth_tex;
 }
+//
+//USED FOR SORTING BINDING DESCRIPTORS IN THE MAKE PIPELINE FUNCTION
+//
+void _slg_d3d12_sort_descs(D3D12_SHADER_INPUT_BIND_DESC* bind_descs,int num_descs){
+    for(int i = 0;i<num_descs-1;i++){
+        for(int j = 0;j<num_descs - i - 1;j++){
+            if(bind_descs[j].BindPoint > bind_descs[j+1].BindPoint){
+                D3D12_SHADER_INPUT_BIND_DESC temp = bind_descs[j];
+                bind_descs[j] = bind_descs[j+1];
+                bind_descs[j+1] = temp;
+            }
+        }
+    }
+}
 void _slg_d3d12_check_ranges(D3D12_DESCRIPTOR_RANGE* range, D3D12_SHADER_INPUT_BIND_DESC bind_desc, D3D12_DESCRIPTOR_RANGE_TYPE range_type, int* num_ranges, int* current_index){
+
+    //first we need to check if the bindpoint is already registered
+    for(int i = 0;i<*num_ranges;i++){
+        if(range[i].BaseShaderRegister == bind_desc.BindPoint && range[i].RangeType == range_type){
+            return;
+        }
+    }
     if(bind_desc.BindPoint != (UINT)*current_index -1){
         D3D12_DESCRIPTOR_RANGE new_range = {0};
         new_range.RangeType = range_type;
@@ -2139,7 +2160,71 @@ slg_pipeline _slg_d3d12_make_pipeline(slg_pipeline_desc* pipeline_desc){
     //int uav_num_ranges = 0;
     int sampler_num_ranges = 0;
 
+    ////////////////////////////////////////////////////////
+    // First we need to fill up bind_desc lists with all the reflection info
+    // They can be repeated or out of order depending on their use in the shader
+    // so we need a full list first -> then sort it -> then make the ranges!
+    /////////////////////////////////////////////////////////
+    D3D12_SHADER_INPUT_BIND_DESC bind_desc_cbuffer[8] = {0};
+    int cbuffer_desc_count = 0;
+    D3D12_SHADER_INPUT_BIND_DESC bind_desc_srv[8] = {0};
+    int srv_desc_count = 0;
+    D3D12_SHADER_INPUT_BIND_DESC bind_desc_sampler[8] = {0};
+    int sampler_desc_count = 0;
+    for(unsigned int i = 0;i < vs_shader_reflection_desc.BoundResources;i++){
+        D3D12_SHADER_INPUT_BIND_DESC bind_desc = {0};
+        vs_reflection->lpVtbl->GetResourceBindingDesc(vs_reflection,i,&bind_desc);
+        if(bind_desc.Type == D3D_SIT_CBUFFER){
+            bind_desc_cbuffer[cbuffer_desc_count] = bind_desc;
+            cbuffer_desc_count++;
+        }
+        else if(bind_desc.Type == D3D_SIT_TEXTURE){
+            bind_desc_srv[srv_desc_count] = bind_desc;
+            srv_desc_count++;
     
+        }
+        else if(bind_desc.Type == D3D_SIT_SAMPLER){
+            bind_desc_sampler[sampler_desc_count] = bind_desc;
+            sampler_desc_count++;
+        }
+    }
+    for(unsigned int i = 0; i<ps_shader_reflection_desc.BoundResources;i++){
+        D3D12_SHADER_INPUT_BIND_DESC bind_desc = {0};
+        ps_reflection->lpVtbl->GetResourceBindingDesc(ps_reflection,i,&bind_desc);
+        if(bind_desc.Type == D3D_SIT_CBUFFER){
+            bind_desc_cbuffer[cbuffer_desc_count] = bind_desc;
+            cbuffer_desc_count++;
+        }
+        else if(bind_desc.Type == D3D_SIT_TEXTURE){
+            bind_desc_srv[srv_desc_count] = bind_desc;
+            srv_desc_count++;
+    
+        }
+        else if(bind_desc.Type == D3D_SIT_SAMPLER){
+            bind_desc_sampler[sampler_desc_count] = bind_desc;
+            sampler_desc_count++;
+        }
+    }
+    //////////////////////////////////////////////////////////////////////// FINISHED GRABBING DESCS
+    //NOW SORT 
+
+    _slg_d3d12_sort_descs(bind_desc_cbuffer,cbuffer_desc_count);
+    _slg_d3d12_sort_descs(bind_desc_srv,srv_desc_count);
+    _slg_d3d12_sort_descs(bind_desc_sampler,sampler_desc_count);
+    //DONE SORTING
+    //////////////////////////////////////////////////////////////////////////////////////////////////
+    //NOW MAKE THE RANGES FROM THE SORTED DESCRIPTORS
+    for(int i = 0;i<cbuffer_desc_count;i++){
+        _slg_d3d12_check_ranges(CBV_ranges,bind_desc_cbuffer[i],D3D12_DESCRIPTOR_RANGE_TYPE_CBV,&cbv_num_ranges,&cbv_current_index);
+    }
+    for(int i = 0;i<srv_desc_count;i++){
+        _slg_d3d12_check_ranges(SRV_ranges,bind_desc_srv[i],D3D12_DESCRIPTOR_RANGE_TYPE_SRV,&srv_num_ranges,&srv_current_index);
+    }
+    for(int i = 0;i<sampler_desc_count;i++){
+        _slg_d3d12_check_ranges(SAMPLER_ranges,bind_desc_sampler[i],D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER,&sampler_num_ranges,&sampler_current_index);
+    }
+
+    /*
     for(unsigned int i = 0;i < vs_shader_reflection_desc.BoundResources;i++){
         D3D12_SHADER_INPUT_BIND_DESC bind_desc = {0};
         vs_reflection->lpVtbl->GetResourceBindingDesc(vs_reflection,i,&bind_desc);
@@ -2169,7 +2254,7 @@ slg_pipeline _slg_d3d12_make_pipeline(slg_pipeline_desc* pipeline_desc){
             _slg_d3d12_check_ranges(SAMPLER_ranges,bind_desc,D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER,&sampler_num_ranges,&sampler_current_index);
         }
     }
-
+    */
     int root_parameter_index = 0;
     if(cbv_num_ranges>0){
         _slg_d3d12_add_range_to_root(&pip.data_ptr->root_parameters[root_parameter_index],CBV_ranges,cbv_num_ranges);

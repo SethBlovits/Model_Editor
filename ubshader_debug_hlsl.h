@@ -8,6 +8,8 @@
 #define VERTEX_SHADER_SOURCE_UBSHADER_DEBUG "ubshader_debug_vs.cso" 
 #define FRAGMENT_SHADER_SOURCE_UBSHADER_DEBUG "ubshader_debug_ps.cso" 
 #define BINDSLOT_UBSHADER_DEBUG_TransformBuffer 0
+#define BINDSLOT_UBSHADER_DEBUG_jointMat 2
+#define BINDSLOT_UBSHADER_DEBUG_FeatureFlags 3
 #define BINDSLOT_UBSHADER_DEBUG_g_sampler 0
 #define BINDSLOT_UBSHADER_DEBUG_albedo 0
 #define BINDSLOT_UBSHADER_DEBUG_LightPositions 1
@@ -22,6 +24,8 @@
 
 typedef struct UBSHADER_DEBUG_HLSL_UNIFORMS{
 	slg_buffer TransformBuffer;
+	slg_buffer jointMat;
+	slg_buffer FeatureFlags;
 	slg_texture albedo;
 	slg_buffer LightPositions;
 }UBSHADER_DEBUG_HLSL_UNIFORMS;
@@ -29,6 +33,8 @@ typedef struct UBSHADER_DEBUG_HLSL_UNIFORMS{
 slg_uniforms UBSHADER_DEBUG_HLSL_MAKE_UNIFORMS(UBSHADER_DEBUG_HLSL_UNIFORMS uniform_desc){
 	slg_uniforms out_uniforms = {0};
 	out_uniforms.cbv_buffer[BINDSLOT_UBSHADER_DEBUG_TransformBuffer] = uniform_desc.TransformBuffer;
+	out_uniforms.cbv_buffer[BINDSLOT_UBSHADER_DEBUG_jointMat] = uniform_desc.jointMat;
+	out_uniforms.cbv_buffer[BINDSLOT_UBSHADER_DEBUG_FeatureFlags] = uniform_desc.FeatureFlags;
 	out_uniforms.samplers[BINDSLOT_UBSHADER_DEBUG_g_sampler] = true;
 	out_uniforms.srv_buffer[BINDSLOT_UBSHADER_DEBUG_albedo] = uniform_desc.albedo;
 	out_uniforms.cbv_buffer[BINDSLOT_UBSHADER_DEBUG_LightPositions] = uniform_desc.LightPositions;
