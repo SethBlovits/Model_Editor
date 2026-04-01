@@ -88,6 +88,8 @@ typedef struct{
     Vector3 right;
     Mat4 view;
     Mat4 projection;
+    float near_plane;
+    float far_plane;
 }Camera;
 Camera offscreen_camera;
 
@@ -241,19 +243,21 @@ void init(){
 
     Mat4 mvpMat4 = identityMat4();
     Mat4 m_model = identityMat4();
-    m_model = scaledMat4(m_model,(Vector3){0.1f,0.1f,0.1f});
+    //m_model = scaledMat4(m_model,(Vector3){0.1f,0.1f,0.1f});
     offscreen_camera.position = (Vector3){0.0f,0.0f,10.0f};
     offscreen_camera.target = (Vector3){0.0f,0.0f,0.0f};
     offscreen_camera.direction = normalizeVec3(subtractVec3(offscreen_camera.position,offscreen_camera.target));
+    offscreen_camera.near_plane = 0.1f;
+    offscreen_camera.far_plane = 100.0f;
     //mainCamera.direction = normalizeVec3(subtractVec3(mainCamera.position,mainCamera.target));
     Vector3 up = {0.0f,1.0f,0.0f};
     offscreen_camera.right = normalizeVec3(crossVec3(up,offscreen_camera.direction));
     offscreen_camera.up = crossVec3(offscreen_camera.direction,offscreen_camera.right);
 
     //mainCamera.view = LookAt_RH(mainCamera.right,mainCamera.up,mainCamera.direction,mainCamera.position);
-    offscreen_camera.view = LookAt_RH_Version2(offscreen_camera.position,(Vector3){0.0f,0.0f,0.0f},up);
+    offscreen_camera.view = LookAt_RH_Version2(offscreen_camera.position,offscreen_camera.target,up);
     float aspect = APP_WIDTH/APP_HEIGHT;
-    offscreen_camera.projection = perspectiveMat4_Z0(1.0472f,aspect,0.1f,100.0f);
+    offscreen_camera.projection = perspectiveMat4_Z0(1.0472f,aspect,offscreen_camera.near_plane,offscreen_camera.far_plane);
     mvpMat4 = mulMat4(mulMat4(offscreen_camera.projection,offscreen_camera.view),m_model);
 
     
@@ -273,7 +277,7 @@ void init(){
         .depth_stencil_desc.depth_enable = true,
         .depth_stencil_desc.write_mask = SLG_DEPTH_WRITE_MASK_ALL,
         .depth_stencil_desc.compare_func = SLG_COMPARISON_FUNC_LESS,
-        .rasterizer_desc.facewinding_mode = SLG_FACEWINDING_CLOCKWISE
+        //.rasterizer_desc.facewinding_mode = SLG_FACEWINDING_CLOCKWISE
     });
 
    Transform_Matrices.model_mat = m_model;
@@ -335,7 +339,7 @@ void init(){
     offscreen_pass.bind = offscreen_bindings;
     offscreen_pass.pip = offscreen_pip; 
     
-    load_gltf("C:\\MaterialEditor\\test_gltf\\Fox.gltf",MAX_PATH);
+    //load_gltf("C:\\MaterialEditor\\test_gltf\\Fox.gltf",MAX_PATH);
     slg_close_setup();
 
     igStyleColorsDark(igGetStyle());
@@ -401,11 +405,40 @@ void load_gltf(char* path, int path_size){
     SetCurrentDirectory("C:\\MaterialEditor\\test_gltf");
     //this function pulls model data from a gltf file it can get the buffers and the all the rest of the data
     GLTF_Data gltf_model = getDataFromGltf(path, path_size);
-    int break_point = 0;
+    AABB model_bounds = calcAABBFromVertexBuffer(gltf_model.model_buffers.combinedVertBuffer,gltf_model.model_buffers.vbuffer_size);
+
+    //we need to reposition the camera based upon the bounding box
+    Vector3 aabb_center = {
+        .x = (model_bounds.xmin + model_bounds.xmax) * 0.5f,
+        .y = (model_bounds.ymin + model_bounds.ymax) * 0.5f,
+        .z = (model_bounds.zmin + model_bounds.zmax) * 0.5f
+    };
+
+    Vector3 aabb_size = {
+        .x = model_bounds.xmax - model_bounds.xmin,
+        .y = model_bounds.ymax - model_bounds.ymin,
+        .z = model_bounds.zmax - model_bounds.zmin,
+    };
+    
+    float max_size = fmaxf(aabb_size.x,fmaxf(aabb_size.y,aabb_size.z));
+    float fov = 1.0472f;
+    float distance = (max_size * 0.5f) / tanf(fov * 0.5f);
+
+    offscreen_camera.near_plane = 0.01f * distance;
+    offscreen_camera.far_plane = distance * 10.0f;
+    offscreen_camera.position = (Vector3){
+        aabb_center.x,
+        aabb_center.y,
+        aabb_center.z + distance * 1.5f  // pull back far enough
+    };
+    
+    memcpy(offscreen_camera.target.Elements,aabb_center.Elements,sizeof(float)*3);
     fox_vertex_size = (gltf_model.model_buffers.vbuffer_size*sizeof(Vertex));
     fox_index_size = gltf_model.model_buffers.ibuffer_size*sizeof(uint16_t);
     fox_vertex = arena_alloc(&gltf_load_arena,gltf_model.model_buffers.vbuffer_size * sizeof(Vertex));
     fox_index = arena_alloc(&gltf_load_arena,gltf_model.model_buffers.ibuffer_size * sizeof(uint16_t));
+
+    
 
     for(int i = 0;i<gltf_model.model_buffers.vbuffer_size;i++){
         fox_vertex[i].position = gltf_model.model_buffers.combinedVertBuffer[i].position;
@@ -509,6 +542,7 @@ void load_gltf(char* path, int path_size){
 
         stbi_image_free(pixels_albedo);
     }
+    object_textures.albedo = albedo_used;
     //work around to fix incorrect directory issue
     app_reset_working_directory();
     DXGI_FORMAT overrides[] = {
@@ -518,14 +552,12 @@ void load_gltf(char* path, int path_size){
         DXGI_FORMAT_R32G32B32A32_FLOAT,
         DXGI_FORMAT_R32G32B32A32_FLOAT
     };    
-    /*ubershader_pip = slg_make_pipeline(&(slg_pipeline_desc){
+    ubershader_pip = slg_make_pipeline(&(slg_pipeline_desc){
         .shader = slg_make_shader(&UBERSHADER_SHADER_DESC),
         .depth_stencil_desc.depth_enable = true,
         .depth_stencil_desc.write_mask = SLG_DEPTH_WRITE_MASK_ALL,
         .depth_stencil_desc.compare_func = SLG_COMPARISON_FUNC_LESS,
-        .rasterizer_desc.cull_mode = SLG_FACEWINDING_CLOCKWISE,
-        .num_overrides = 5,
-        .format_overrides = overrides
+        .rasterizer_desc.cull_mode = SLG_FACEWINDING_CLOCKWISE
     });
 
     ubershader_bindings = slg_make_bindings(&(slg_bindings_desc){
@@ -538,9 +570,9 @@ void load_gltf(char* path, int path_size){
             .albedo = albedo_used,
             .jointMat = skin_buffer
         })
-    });*/
+    });
 
-    debug_pipeline = slg_make_pipeline(&(slg_pipeline_desc){
+    /*debug_pipeline = slg_make_pipeline(&(slg_pipeline_desc){
         .shader = slg_make_shader(&UBSHADER_DEBUG_SHADER_DESC),
         .depth_stencil_desc.depth_enable = true,
         .depth_stencil_desc.write_mask = SLG_DEPTH_WRITE_MASK_ALL,
@@ -559,10 +591,10 @@ void load_gltf(char* path, int path_size){
             .albedo = albedo_used,
             .jointMat = skin_buffer
         })
-    });
+    });*/
     
-    offscreen_pass.pip = debug_pipeline;
-    offscreen_pass.bind = debug_bindings;
+    offscreen_pass.pip = ubershader_pip;
+    offscreen_pass.bind = ubershader_bindings;
 
 }
 void material_editor(){
@@ -766,8 +798,8 @@ void frame(){
     if(pass_resize.changed_resolution){
         float new_aspect = (float)pass_resize.new_width/(float)pass_resize.new_height;
         Vector3 up = {0.0f,1.0f,0.0f};
-        offscreen_camera.view = LookAt_RH_Version2(offscreen_camera.position,(Vector3){0.0f,0.0f,0.0f},up);
-        offscreen_camera.projection = perspectiveMat4_Z0(1.0472f,new_aspect,0.1f,100.0f);
+        offscreen_camera.view = LookAt_RH_Version2(offscreen_camera.position,offscreen_camera.target,up);
+        offscreen_camera.projection = perspectiveMat4_Z0(1.0472f,new_aspect,offscreen_camera.near_plane,offscreen_camera.far_plane);
         Transform_Matrices.mvp_mat = mulMat4(mulMat4(offscreen_camera.projection,offscreen_camera.view),Transform_Matrices.model_mat);
         slg_update_buffer(transform_buffer,(void*)&Transform_Matrices,sizeof(Transform_Matrices));
         slg_update_render_texture(&offscreen_pass.color_target,(UINT)pass_resize.new_width,(UINT)pass_resize.new_height);
@@ -777,7 +809,7 @@ void frame(){
     }
     else{
         Vector3 up = {0.0f,1.0f,0.0f};
-        offscreen_camera.view = LookAt_RH_Version2(offscreen_camera.position,(Vector3){0.0f,0.0f,0.0f},up);
+        offscreen_camera.view = LookAt_RH_Version2(offscreen_camera.position,offscreen_camera.target,up);
         Transform_Matrices.mvp_mat = mulMat4(mulMat4(offscreen_camera.projection,offscreen_camera.view),Transform_Matrices.model_mat);
         slg_update_buffer(transform_buffer,(void*)&Transform_Matrices,sizeof(Transform_Matrices));
     }
