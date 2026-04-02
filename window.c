@@ -425,14 +425,21 @@ void load_gltf(char* path, int path_size){
     float distance = (max_size * 0.5f) / tanf(fov * 0.5f);
 
     offscreen_camera.near_plane = 0.01f * distance;
+    //offscreen_camera.near_plane = 0.01f;
     offscreen_camera.far_plane = distance * 10.0f;
     offscreen_camera.position = (Vector3){
         aabb_center.x,
         aabb_center.y,
         aabb_center.z + distance * 1.5f  // pull back far enough
     };
-    
+  
+
     memcpy(offscreen_camera.target.Elements,aabb_center.Elements,sizeof(float)*3);
+
+    float aspect = (float)pass_resize.new_width/(float)pass_resize.new_height;
+
+    offscreen_camera.projection = perspectiveMat4_Z0(1.0472f,aspect,offscreen_camera.near_plane,offscreen_camera.far_plane);
+
     fox_vertex_size = (gltf_model.model_buffers.vbuffer_size*sizeof(Vertex));
     fox_index_size = gltf_model.model_buffers.ibuffer_size*sizeof(uint16_t);
     fox_vertex = arena_alloc(&gltf_load_arena,gltf_model.model_buffers.vbuffer_size * sizeof(Vertex));
