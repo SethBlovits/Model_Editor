@@ -100,11 +100,18 @@ struct{
 }Transform_Matrices; 
 slg_buffer transform_buffer;
 
+typedef enum{
+    LIGHT_TYPE_DIRECTIONAL = 0,
+    LIGHT_TYPE_POINT = 1,
+    LIGHT_TYPE_SPOT = 2
+}LIGHT_TYPE;    
 typedef struct{
     Vector3 position; // 12 bytes
     float  intensity; // 4 bytes
     Vector3 color; // 12 bytes
     float  radius; // 4 bytes
+    Vector3 direction;// 12 bytes
+    int light_type; // 4 bytes
 }light;
 typedef struct{
     light lights[16];
@@ -292,14 +299,24 @@ void init(){
     });
 
     light_sources light_data = {0};
+    printf("offsetof position: %d\n", offsetof(light, position));
+    printf("offsetof intensity: %d\n", offsetof(light, intensity));
+    printf("offsetof color: %d\n", offsetof(light, color));
+    printf("offsetof radius: %d\n", offsetof(light, radius));
+    printf("offsetof direction: %d\n", offsetof(light, direction));
+    printf("offsetof light_type: %d\n", offsetof(light, light_type));
+    printf("size light: %d\n", sizeof(light));
     main_light = (light){
         .position  = {1.2f, 0.5f, 2.5f},
         .intensity = 1.0f,
         .color     = {1.0f, 1.0f, 1.0f},
-        .radius    = 10.0f
+        .radius    = 10.0f,
+        .direction = {-0.2f,-0.1f,-0.5f},
+        .light_type = LIGHT_TYPE_DIRECTIONAL
     };
     light_data.num_lights      = 1;
     light_data.lights[0] = main_light;
+    printf("size light_sources: %d\n", sizeof(light_sources));
     light_buffer = slg_make_buffer(&(slg_buffer_desc){
         .buffer = (void*)&light_data,
         .buffer_size = sizeof(light_sources),

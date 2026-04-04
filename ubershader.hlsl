@@ -1,6 +1,10 @@
 #define MAX_LIGHT_COUNT 16
 
 
+#define LIGHT_TYPE_DIRECTIONAL 0
+#define LIGHT_TYPE_POINT 1 
+#define LIGHT_TYPE_SPOT 2
+
 struct VSInput
 {
     float3 position   : POSITION;
@@ -22,6 +26,8 @@ struct Light{
     float  intensity; // 4 bytes
     float3 color; // 12 bytes
     float  radius; // 4 bytes
+    float3 direction;
+    int light_type;
 };
 
 cbuffer TransformBuffer : register(b0) { 
@@ -116,12 +122,21 @@ float4 PSMain(PSInput input) : SV_TARGET
     
     //In here we calculate lighting value
     for(int i = 0;i<num_lights;i++){
-        float3 light_dir = normalize(lights[i].position - input.world_pos); //get the position of the light relative to the point we are operating on
+        float light_dir;
+        if(lights[i].light_type == LIGHT_TYPE_DIRECTIONAL){
+            light_dir = normalize(-lights[i].direction);
+        }
+        else{
+            light_dir = normalize(lights[i].position - input.world_pos);
+        }
+        //float3 light_dir = normalize(lights[i].position - input.world_pos); //get the position of the light relative to the point we are operating on
         // LAMBERTIAN LIGHTING MODEL
-        float  diffuse   = max(dot(normal, light_dir), 0.0f); 
-        float  dist      = length(lights[i].position - input.world_pos); //don't have world pos yet
-        float  atten     = 1.0f / (1.0f + dist / lights[i].radius); //
-
+        float  diffuse   = max(dot(normal, light_dir), 0.0f);
+        float atten = 1.0f;
+        if(lights[i].light_type != LIGHT_TYPE_DIRECTIONAL){
+            float  dist      = length(lights[i].position - input.world_pos); //don't have world pos yet
+            float  atten     = 1.0f / (1.0f + dist / lights[i].radius); //
+        } 
         //total_lighting += (lights[i].color * diffuse + specular) * lights[i].intensity * atten;
         //specular not implemented yet
         total_lighting += (lights[i].color * diffuse) * lights[i].intensity * atten;
@@ -130,6 +145,7 @@ float4 PSMain(PSInput input) : SV_TARGET
     
     //return (color * float4(total_lighting,1.0f))*0.01f + float4(1.0f,0.0f,0.0f,1.0f) ; //+ float4(normal.xyz,1.0f);
     return (color * float4(total_lighting,1.0f));
+    //return (float4(total_lighting,1.0f)* 0.01f + lights[0].color);
      
     
     //return color;

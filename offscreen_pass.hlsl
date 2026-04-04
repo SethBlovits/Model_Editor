@@ -20,7 +20,10 @@ struct Light{
     float  intensity; // 4 bytes
     float3 color; // 12 bytes
     float  radius; // 4 bytes
+    float3 direction;
+    int light_type;
 };
+
 
 cbuffer TransformBuffer : register(b0) { 
     column_major float4x4 mvpMatrix;
