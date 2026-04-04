@@ -17,7 +17,8 @@
 #include "slugs_imgui.h"
 #include "mathUtil.h"
 #include "modelData.h"
-
+#define ANIMATION_UTIL_IMPLEMENTATION
+#include "animationUtil.h"
 
 #include "offscreen_pass_hlsl.h"
 #include "ubershader_hlsl.h"
@@ -140,9 +141,11 @@ struct{
 }pass_resize;
 
 struct{
+    GLTF_Data gltf_data;
+    AABB bounding_box;
     slg_texture albedo;
     slg_render_texture normal;
-}object_textures;
+}object_data;
 
 
 slg_buffer ubershader_vert_buffer;
@@ -246,7 +249,7 @@ void init(){
         .pixel_size = 4
     });
 
-    object_textures.albedo = texture;
+    object_data.albedo = texture;
 
     Mat4 mvpMat4 = identityMat4();
     Mat4 m_model = identityMat4();
@@ -299,13 +302,13 @@ void init(){
     });
 
     light_sources light_data = {0};
-    printf("offsetof position: %d\n", offsetof(light, position));
+    /*printf("offsetof position: %d\n", offsetof(light, position));
     printf("offsetof intensity: %d\n", offsetof(light, intensity));
     printf("offsetof color: %d\n", offsetof(light, color));
     printf("offsetof radius: %d\n", offsetof(light, radius));
     printf("offsetof direction: %d\n", offsetof(light, direction));
     printf("offsetof light_type: %d\n", offsetof(light, light_type));
-    printf("size light: %d\n", sizeof(light));
+    printf("size light: %d\n", sizeof(light));*/
     main_light = (light){
         .position  = {1.2f, 0.5f, 2.5f},
         .intensity = 1.0f,
@@ -316,7 +319,7 @@ void init(){
     };
     light_data.num_lights      = 1;
     light_data.lights[0] = main_light;
-    printf("size light_sources: %d\n", sizeof(light_sources));
+   // printf("size light_sources: %d\n", sizeof(light_sources));
     light_buffer = slg_make_buffer(&(slg_buffer_desc){
         .buffer = (void*)&light_data,
         .buffer_size = sizeof(light_sources),
@@ -374,6 +377,7 @@ void init(){
     style->FrameRounding  = 3.0f;
     style->GrabRounding   = 3.0f;
     style->WindowRounding = 0.0f;
+
 }
 
 void check_button_index(int *current_index,int *selected_index,const char* button_name, ImVec2 region_size){
@@ -422,8 +426,9 @@ void load_gltf(char* path, int path_size){
     SetCurrentDirectory("C:\\MaterialEditor\\test_gltf");
     //this function pulls model data from a gltf file it can get the buffers and the all the rest of the data
     GLTF_Data gltf_model = getDataFromGltf(path, path_size);
+    object_data.gltf_data = gltf_model;
     AABB model_bounds = calcAABBFromVertexBuffer(gltf_model.model_buffers.combinedVertBuffer,gltf_model.model_buffers.vbuffer_size);
-
+    object_data.bounding_box = model_bounds;
     //we need to reposition the camera based upon the bounding box
     Vector3 aabb_center = {
         .x = (model_bounds.xmin + model_bounds.xmax) * 0.5f,
@@ -474,12 +479,12 @@ void load_gltf(char* path, int path_size){
     }
     slg_buffer fox_index_buffer = slg_make_buffer(&(slg_buffer_desc){
         .buffer = fox_index,
-        .buffer_size = fox_index_size,
+        .buffer_size = (UINT)fox_index_size,
         .buffer_stride = sizeof(uint16_t),
     });
     slg_buffer fox_vertex_buffer = slg_make_buffer(&(slg_buffer_desc){
         .buffer = fox_vertex,
-        .buffer_size = fox_vertex_size,
+        .buffer_size = (UINT)fox_vertex_size,
         .buffer_stride = sizeof(Vertex)
     });
     ubershader_vert_buffer = slg_make_buffer(&(slg_buffer_desc){
@@ -566,7 +571,7 @@ void load_gltf(char* path, int path_size){
 
         stbi_image_free(pixels_albedo);
     }
-    object_textures.albedo = albedo_used;
+    object_data.albedo = albedo_used;
     //work around to fix incorrect directory issue
     app_reset_working_directory();
     DXGI_FORMAT overrides[] = {
@@ -621,6 +626,22 @@ void load_gltf(char* path, int path_size){
     offscreen_pass.bind = ubershader_bindings;
 
 }
+//I want the animation preview panel to appear 
+// as a popup in the corner of the grid?????
+// I want a list of the available animations
+// a button to play the animations
+// and a preview of the time variables
+// such as animation length and current animation time
+
+void animation_preview_panel(){
+
+    if(igBeginPopupModal("my_popup", NULL, ImGuiWindowFlags_None)){
+        igText("Hello from popup");
+        
+      
+        igEndPopup();
+    }      
+}
 void material_editor(){
     
     
@@ -648,7 +669,7 @@ void material_editor(){
             ImVec2 image_size = {0};
             image_size.x = image_avail.x * param_layout.tex_image_size.x;
             image_size.y = image_avail.y * param_layout.tex_image_size.y;
-            igImage((ImTextureID)&object_textures.albedo,image_size);
+            igImage((ImTextureID)&object_data.albedo,image_size);
 
             //igImage(NULL,image_size);
             //igImage(NULL,image_size);
@@ -775,6 +796,7 @@ void material_editor(){
     }
    
     igImage((ImTextureID)offscreen_pass.color_target.tex,available_space);
+    animation_preview_panel();
     igEndChild();
     igPopStyleColor();
     igPopStyleVarEx(1);
@@ -840,7 +862,7 @@ void frame(){
     slg_begin_offscreen_pass(&offscreen_pass);
     slg_set_pipeline(&offscreen_pass.pip);
     slg_set_bindings(&offscreen_pass.bind);
-    slg_draw(offscreen_pass.bind.data_ptr->index_buffer.size_in_bytes/offscreen_pass.bind.data_ptr->index_buffer.stride,1,0,0,0);
+    slg_draw((unsigned int)offscreen_pass.bind.data_ptr->index_buffer.size_in_bytes/offscreen_pass.bind.data_ptr->index_buffer.stride,1,0,0,0);
     slg_end_offscreen_pass(&offscreen_pass);
     
     //I think it would look something like this
@@ -862,6 +884,7 @@ void frame(){
             char path[MAX_PATH];
             app_open_file_dialog(path,MAX_PATH);
             load_gltf(path,MAX_PATH);
+            igOpenPopup("my_popup", 0); 
             
         }
         if(igMenuItem("Save")){
