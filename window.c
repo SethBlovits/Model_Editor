@@ -40,6 +40,12 @@
 ---------------------------------
 */
 struct{
+    GLTF_Data gltf_data;
+    AABB bounding_box;
+    slg_texture albedo;
+    slg_render_texture normal;
+}object_data;
+struct{
     float panel_horiz;
 
     float name_vert;
@@ -65,6 +71,18 @@ struct{
 ImVec2 mouse_rotation = {0,0};
 
 int selected_button_index = -1;
+struct{
+    bool window_enabled;
+    int selected_index;
+    ImVec2 panel_pos;
+    ImVec2 panel_size;
+}animation_window = {
+    .window_enabled = false,
+    .selected_index = 0,
+    .panel_pos = {0.0f,0.0f},
+    .panel_size = {300.0f,400.0f}
+};
+
 
 typedef struct Render_Window{
     int width;
@@ -140,12 +158,7 @@ struct{
     int new_height;
 }pass_resize;
 
-struct{
-    GLTF_Data gltf_data;
-    AABB bounding_box;
-    slg_texture albedo;
-    slg_render_texture normal;
-}object_data;
+
 
 
 slg_buffer ubershader_vert_buffer;
@@ -634,13 +647,31 @@ void load_gltf(char* path, int path_size){
 // such as animation length and current animation time
 
 void animation_preview_panel(){
-
-    if(igBeginPopupModal("my_popup", NULL, ImGuiWindowFlags_None)){
-        igText("Hello from popup");
+    if(animation_window.window_enabled){
+        igSetNextWindowSize(animation_window.panel_size, ImGuiCond_Always);
+        igSetNextWindowPos(animation_window.panel_pos,ImGuiCond_Always);
+        igBegin("Animation Preview", NULL, ImGuiWindowFlags_None);
+        igText("Hello from panel");
+        for(int i = 0; i<object_data.gltf_data.model.numberOfAnimations;i++){
+            bool selected = (animation_window.selected_index == i);
         
-      
-        igEndPopup();
-    }      
+            igPushStyleColorImVec4(ImGuiCol_Header,        (ImVec4){0.78f, 0.66f, 0.43f, 0.3f});
+            igPushStyleColorImVec4(ImGuiCol_HeaderHovered, (ImVec4){0.78f, 0.66f, 0.43f, 0.5f});
+            
+            if(igSelectableBoolPtrEx(object_data.gltf_data.model.animations[i].name, &selected, ImGuiSelectableFlags_None, (ImVec2){0,0})){
+                animation_window.selected_index = i;
+            }
+            
+            igPopStyleColorEx(2);
+        }
+        if(igButton("Play Animation")){
+            if(animation_window.selected_index != -1){
+                playAnimation(object_data.gltf_data.model.animations[animation_window.selected_index],app_get_current_time(),&object_data.gltf_data.model.nodes[animation_window.selected_index]);
+            }
+            
+        }    
+        igEnd();
+    }
 }
 void material_editor(){
     
@@ -764,6 +795,7 @@ void material_editor(){
     ImDrawList* draw_list = igGetWindowDrawList();
     ImVec2 grid_space = igGetContentRegionAvail();
     ImVec2 cursor_pos = igGetCursorScreenPos();
+    animation_window.panel_pos = cursor_pos;
 
     float dominant_region = (grid_space.x > grid_space.y) ? grid_space.x : grid_space.y;
 
@@ -884,7 +916,8 @@ void frame(){
             char path[MAX_PATH];
             app_open_file_dialog(path,MAX_PATH);
             load_gltf(path,MAX_PATH);
-            igOpenPopup("my_popup", 0); 
+            animation_window.window_enabled = true;
+            
             
         }
         if(igMenuItem("Save")){
@@ -912,7 +945,8 @@ void frame(){
         ImGuiWindowFlags_NoCollapse  |
         ImGuiWindowFlags_NoTitleBar  |
         ImGuiWindowFlags_NoResize    |
-        ImGuiWindowFlags_NoMove
+        ImGuiWindowFlags_NoMove      |
+        ImGuiWindowFlags_NoBringToFrontOnFocus
     );
 
 

@@ -16,6 +16,7 @@ struct {
     LARGE_INTEGER previous_time;
     LARGE_INTEGER current_time;
     float delta_time;
+    float current_time_float;
 } app_time;
 
 
@@ -359,6 +360,7 @@ void _app_frame_loop_Win32(){
     while(true){
         QueryPerformanceCounter(&app_time.current_time);
         app_time.delta_time = (float)(app_time.current_time.QuadPart-app_time.previous_time.QuadPart)/app_time.frequency.QuadPart;
+        app_time.current_time_float = (float)app_time.current_time.QuadPart;
         app_time.previous_time = app_time.current_time;
         MSG msg;
         while(PeekMessage(&msg,NULL,0,0,PM_REMOVE)){
@@ -455,6 +457,9 @@ void app_get_cursor_pos(int* x,int* y){
 
 inline float app_get_delta_time(){
     return app_time.delta_time;
+}
+inline float app_get_current_time(){
+    return app_time.current_time_float;
 }
 void app_init(app_desc_t app_desc){
     app_init_func = app_desc.init_func;
