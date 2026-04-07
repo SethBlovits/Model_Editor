@@ -80,7 +80,7 @@ typedef struct Anim_Node_t{
 
 
 void Anim_EaseToHome(Anim_Node_t *nodes, int numberOfNodes, float animationTime, float transitionTime);
-void Anim_EaseToAnimation(Anim_Animation_t animation, Anim_Node_t *nodes, int numberOfNodes, float animationTime, float transitionTime);
+void Anim_EaseToAnimation(Anim_Animation_t animation, Anim_Node_t *nodes, float animationTime, float transitionTime);
 void Anim_playAnimation(Anim_Animation_t animation, float currentTime, Anim_Node_t *nodes);
 
 #ifdef ANIMATION_UTIL_IMPLEMENTATION
@@ -98,14 +98,13 @@ void Anim_EaseToHome(Anim_Node_t *nodes, int numberOfNodes,float animationTime,f
     }
 }
 
-void Anim_EaseToAnimation(Anim_Animation_t animation, Anim_Node_t *nodes, int numberOfNodes,float animationTime,float transitionTime){
+void Anim_EaseToAnimation(Anim_Animation_t animation, Anim_Node_t *nodes,float animationTime,float transitionTime){
     float interpolationTime = (animationTime - 0)/(transitionTime - 0);
     for(int i = 0;i<animation.numChannels;i++){
         Anim_Channel_t channel = animation.channels[i];
         int nodeIndex = channel.nodeIndex;
         int transformType = channel.transform_type;
         Anim_Sampler_t sampler = channel.sampler;
-        float samplerTest = sampler.sampler_time[0];
         switch(transformType){
             case cgltf_animation_path_type_translation:
                 Vector3 lerpTranslate = lerpVec3(nodes[nodeIndex].transitionTranslation,sampler.translation[0],interpolationTime);
@@ -180,8 +179,53 @@ void Anim_playAnimation(Anim_Animation_t animation,float currentTime,Anim_Node_t
     
 }
 
+void Anim_calculateChildRecursive(Node_t *nodes, int nodeIndex){
+    Node_t *node = &nodes[nodeIndex];
+    int parentIndex = node->parentIndex;
+    Mat4 parentWorldTransform; 
+    if(node->hasParent){
+        parentWorldTransform = nodes[parentIndex].worldTransformMatrix;
+    }
+    else{
+        parentWorldTransform = identityMat4();
+    }
+    node->worldTransformMatrix = mulMat4(parentWorldTransform,node->transformMatrix);
+    if(node->numChildren==0){
+        return;
+    }
+    for(int i = 0;i<node->numChildren;i++){
+        int childIndex = node->childIndices[i];
+        Anim_calculateChildRecursive(nodes,childIndex);
+    }
+}
 
-
+void Anim_recalculateSkinningMatrix(Node_t *nodes,int numberOfNodes,Mat4 *skinMatrix){
+    
+    for(int i =0; i<numberOfNodes;i++){
+        if(nodes[i].hasParent == false){
+            int numberOfChildren = nodes[i].numChildren;
+            for(int c = 0;c<numberOfChildren;c++){
+                int childIndex = nodes[i].childIndices[c];
+                Anim_calculateChildRecursive(nodes,childIndex);
+                
+            }
+        }
+    }
+    for(int i =0;i<numberOfNodes;i++){
+        skinMatrix[i] = mulMat4(nodes[i].worldTransformMatrix,nodes[i].inverseJointMatrix);
+    }
+ 
+}
+void Anim_recalculateLocalTransformMatrix(Node_t *nodes,int numberOfNodes){
+    for(int i = 0;i<numberOfNodes;i++){
+        Vector3 translation = nodes[i].translation;
+        Vector3 scale = nodes[i].scale;
+        Vector4 rotation = nodes[i].rotation;
+        Mat4 transformTest =  nodes[i].transformMatrix;
+        nodes[i].transformMatrix = TRSMat4(translation,rotation,scale);
+        Mat4 transformTest2 = nodes[i].transformMatrix;
+    }
+}
 #endif //impl endif
 
 

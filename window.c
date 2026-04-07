@@ -42,8 +42,19 @@
 struct{
     GLTF_Data gltf_data;
     AABB bounding_box;
+    Mat4* skin_matrix;
+    int num_skin_mat;
+
     slg_texture albedo;
     slg_render_texture normal;
+
+    bool loaded_model;
+
+    slg_buffer vertex_buffer;
+    slg_buffer index_buffer;
+    slg_buffer skin_buffer;
+    slg_buffer transform_buffer;
+    
 }object_data;
 struct{
     float panel_horiz;
@@ -513,25 +524,26 @@ void load_gltf(char* path, int path_size){
     });
 
     feature_flags flags = {0};
-    Mat4* skin_matrix;
-    slg_buffer skin_buffer;
+    
     if(gltf_model.model.numberOfAnimations> 0){
         flags.has_skinning = 1;
-        skin_matrix = arena_alloc(&gltf_load_arena,gltf_model.model.numberOfNodes * sizeof(Mat4)); 
+        object_data.skin_matrix = arena_alloc(&gltf_load_arena,gltf_model.model.numberOfNodes * sizeof(Mat4)); 
+        object_data.num_skin_mat = gltf_model.model.numberOfNodes;
         recalculateLocalTransformMatrix(gltf_model.model.nodes,gltf_model.model.numberOfNodes);
-        recalculateSkinningMatrix(gltf_model.model.nodes,gltf_model.model.numberOfNodes,(skinMatrix_t*)skin_matrix);
-        skin_buffer = slg_make_buffer(&(slg_buffer_desc){
-            .buffer = (void*)skin_matrix,
+        recalculateSkinningMatrix(gltf_model.model.nodes,gltf_model.model.numberOfNodes,(skinMatrix_t*)object_data.skin_matrix);
+        object_data.skin_buffer = slg_make_buffer(&(slg_buffer_desc){
+            .buffer = (void*)object_data.skin_matrix,
             .buffer_size = gltf_model.model.numberOfNodes * sizeof(Mat4),
             .buffer_stride = sizeof(Mat4),
             .usage = SLG_BUFFER_USAGE_CONSTANT_BUFFER
         });
     }
     else{
-        skin_matrix = arena_alloc(&gltf_load_arena,sizeof(Mat4));
-        skin_matrix[0] = identityMat4();
-        skin_buffer = slg_make_buffer(&(slg_buffer_desc){
-            .buffer = (void*)skin_matrix,
+        object_data.skin_matrix = arena_alloc(&gltf_load_arena,sizeof(Mat4));
+        object_data.skin_matrix[0] = identityMat4();
+        object_data.num_skin_mat = 1;
+        object_data.skin_buffer = slg_make_buffer(&(slg_buffer_desc){
+            .buffer = (void*)object_data.skin_matrix,
             .buffer_size = sizeof(Mat4),
             .buffer_stride = sizeof(Mat4),
             .usage = SLG_BUFFER_USAGE_CONSTANT_BUFFER
@@ -610,7 +622,7 @@ void load_gltf(char* path, int path_size){
             .TransformBuffer = transform_buffer,
             .LightPositions = light_buffer,
             .albedo = albedo_used,
-            .jointMat = skin_buffer
+            .jointMat = object_data.skin_buffer
         })
     });
 
@@ -637,6 +649,7 @@ void load_gltf(char* path, int path_size){
     
     offscreen_pass.pip = ubershader_pip;
     offscreen_pass.bind = ubershader_bindings;
+    object_data.loaded_model = true;
 
 }
 //I want the animation preview panel to appear 
@@ -664,13 +677,26 @@ void animation_preview_panel(){
             
             igPopStyleColorEx(2);
         }
+
+        //we need some more information for this,
+        //we can't just send the current_app time.
+        //we need to store start time, and pass the elapsed time since the start time
         if(igButton("Play Animation")){
             if(animation_window.selected_index != -1){
                 playAnimation(object_data.gltf_data.model.animations[animation_window.selected_index],app_get_current_time(),&object_data.gltf_data.model.nodes[animation_window.selected_index]);
             }
             
-        }    
+        }
+        
+        igText("Current Time: %0.2f",app_get_current_time());
+
         igEnd();
+
+        //recalculate the matrix in here maybe for organization purposes??????
+        Anim_recalculateLocalTransformMatrix(object_data.gltf_data.model.nodes,object_data.gltf_data.model.numberOfNodes);
+        Anim_recalculateSkinningMatrix(object_data.gltf_data.model.nodes,object_data.gltf_data.model.numberOfNodes,object_data.skin_matrix);
+    
+
     }
 }
 void material_editor(){
@@ -891,6 +917,10 @@ void frame(){
         Transform_Matrices.mvp_mat = mulMat4(mulMat4(offscreen_camera.projection,offscreen_camera.view),Transform_Matrices.model_mat);
         slg_update_buffer(transform_buffer,(void*)&Transform_Matrices,sizeof(Transform_Matrices));
     }
+    if(object_data.loaded_model){
+        slg_update_buffer(object_data.skin_buffer,(void*)&object_data.skin_matrix,sizeof(Mat4)*object_data.num_skin_mat);
+    }
+    
     slg_begin_offscreen_pass(&offscreen_pass);
     slg_set_pipeline(&offscreen_pass.pip);
     slg_set_bindings(&offscreen_pass.bind);

@@ -12,11 +12,11 @@
 #define INVALID 0
 
 struct {
+    LARGE_INTEGER start_time;
     LARGE_INTEGER frequency;
     LARGE_INTEGER previous_time;
     LARGE_INTEGER current_time;
     float delta_time;
-    float current_time_float;
 } app_time;
 
 
@@ -347,6 +347,7 @@ void _create_window_Win32(int width, int height){
             MB_OK|MB_ICONEXCLAMATION);
             return;
     }
+    QueryPerformanceCounter(&app_time.start_time);
     app_data_d3d12.app_dpi = GetDpiForWindow(app_data_d3d12.hwnd);
     return;
 
@@ -360,7 +361,6 @@ void _app_frame_loop_Win32(){
     while(true){
         QueryPerformanceCounter(&app_time.current_time);
         app_time.delta_time = (float)(app_time.current_time.QuadPart-app_time.previous_time.QuadPart)/app_time.frequency.QuadPart;
-        app_time.current_time_float = (float)app_time.current_time.QuadPart;
         app_time.previous_time = app_time.current_time;
         MSG msg;
         while(PeekMessage(&msg,NULL,0,0,PM_REMOVE)){
@@ -459,7 +459,7 @@ inline float app_get_delta_time(){
     return app_time.delta_time;
 }
 inline float app_get_current_time(){
-    return app_time.current_time_float;
+    return (float)(((double)app_time.current_time.QuadPart - (double)app_time.start_time.QuadPart)/(double)app_time.frequency.QuadPart) ;
 }
 void app_init(app_desc_t app_desc){
     app_init_func = app_desc.init_func;
