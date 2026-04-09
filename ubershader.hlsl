@@ -41,10 +41,10 @@ cbuffer LightPositions : register(b1) {
     int num_lights;  //4 bytes
     float3 aligned_buffer; //12 bytes to align buffer
 };
-cbuffer jointMat : register(b2){
-    column_major float4x4 joint_mat[64]; //64 is maximum joints
-};
-cbuffer FeatureFlags : register(b3){
+//cbuffer jointMat : register(b2){
+//    column_major float4x4 joint_mat[64]; //64 is maximum joints
+//};
+cbuffer FeatureFlags : register(b2){
     int has_skinning;
     int has_tangents;
     int has_albedo;
@@ -61,22 +61,24 @@ Texture2D metallic_roughness : register(t3);
 Texture2D emissive : register(t4);
 Texture2D occlusion : register(t5);
 
+StructuredBuffer<float4x4> joint_matrices : register(t6);
+
 SamplerState g_sampler : register(s0);
 
 
 void calc_skin_pos(in float3 pos, in float4 joint_weight, in float4 joint_index, out float3 skin_pos){
     float4x4 skin_mat = (float4x4)0;
     if(joint_weight.x>0){
-        skin_mat += joint_weight.x*joint_mat[int(joint_index.x)];
+        skin_mat += joint_weight.x*joint_matrices[int(joint_index.x)];
     }
     if(joint_weight.y>0){
-        skin_mat += joint_weight.y*joint_mat[int(joint_index.y)];
+        skin_mat += joint_weight.y*joint_matrices[int(joint_index.y)];
     }
     if(joint_weight.z>0){
-        skin_mat += joint_weight.z*joint_mat[int(joint_index.z)];
+        skin_mat += joint_weight.z*joint_matrices[int(joint_index.z)];
     }
     if(joint_weight.w>0){
-        skin_mat += joint_weight.w*joint_mat[int(joint_index.w)];
+        skin_mat += joint_weight.w*joint_matrices[int(joint_index.w)];
     }
     if(dot(joint_weight,float4(1,1,1,1))==0){
         skin_mat = float4x4(
@@ -122,7 +124,7 @@ float4 PSMain(PSInput input) : SV_TARGET
     
     //In here we calculate lighting value
     for(int i = 0;i<num_lights;i++){
-        float light_dir;
+        float3 light_dir;
         if(lights[i].light_type == LIGHT_TYPE_DIRECTIONAL){
             light_dir = normalize(-lights[i].direction);
         }
@@ -135,7 +137,7 @@ float4 PSMain(PSInput input) : SV_TARGET
         float atten = 1.0f;
         if(lights[i].light_type != LIGHT_TYPE_DIRECTIONAL){
             float  dist      = length(lights[i].position - input.world_pos); //don't have world pos yet
-            float  atten     = 1.0f / (1.0f + dist / lights[i].radius); //
+            atten     = 1.0f / (1.0f + dist / lights[i].radius); //
         } 
         //total_lighting += (lights[i].color * diffuse + specular) * lights[i].intensity * atten;
         //specular not implemented yet

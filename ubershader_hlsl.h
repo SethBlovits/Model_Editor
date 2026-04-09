@@ -7,9 +7,9 @@
 #define HLSL_SHADER_SOURCE_UBERSHADER "ubershader.hlsl"
 #define VERTEX_SHADER_SOURCE_UBERSHADER "ubershader_vs.cso" 
 #define FRAGMENT_SHADER_SOURCE_UBERSHADER "ubershader_ps.cso" 
+#define BINDSLOT_UBERSHADER_joint_matrices 6
 #define BINDSLOT_UBERSHADER_TransformBuffer 0
-#define BINDSLOT_UBERSHADER_jointMat 2
-#define BINDSLOT_UBERSHADER_FeatureFlags 3
+#define BINDSLOT_UBERSHADER_FeatureFlags 2
 #define BINDSLOT_UBERSHADER_g_sampler 0
 #define BINDSLOT_UBERSHADER_albedo 0
 #define BINDSLOT_UBERSHADER_LightPositions 1
@@ -23,8 +23,8 @@
 }
 
 typedef struct UBERSHADER_HLSL_UNIFORMS{
+	slg_buffer joint_matrices;
 	slg_buffer TransformBuffer;
-	slg_buffer jointMat;
 	slg_buffer FeatureFlags;
 	slg_texture albedo;
 	slg_buffer LightPositions;
@@ -32,8 +32,8 @@ typedef struct UBERSHADER_HLSL_UNIFORMS{
 
 slg_uniforms UBERSHADER_HLSL_MAKE_UNIFORMS(UBERSHADER_HLSL_UNIFORMS uniform_desc){
 	slg_uniforms out_uniforms = {0};
+	out_uniforms.srv_buffer[BINDSLOT_UBERSHADER_joint_matrices] = uniform_desc.joint_matrices;
 	out_uniforms.cbv_buffer[BINDSLOT_UBERSHADER_TransformBuffer] = uniform_desc.TransformBuffer;
-	out_uniforms.cbv_buffer[BINDSLOT_UBERSHADER_jointMat] = uniform_desc.jointMat;
 	out_uniforms.cbv_buffer[BINDSLOT_UBERSHADER_FeatureFlags] = uniform_desc.FeatureFlags;
 	out_uniforms.samplers[BINDSLOT_UBERSHADER_g_sampler] = true;
 	out_uniforms.srv_buffer[BINDSLOT_UBERSHADER_albedo] = uniform_desc.albedo;

@@ -458,6 +458,7 @@ typedef struct{
 typedef enum{
     SLG_BUFFER_USAGE_DEFAULT = 0,
     SLG_BUFFER_USAGE_CONSTANT_BUFFER = 1,
+    SLG_BUFFER_USAGE_STRUCTURED_BUFFER = 2
 }SLG_BUFFER_USAGE;
 
 typedef struct{
@@ -494,6 +495,7 @@ typedef struct{
     uint64_t size_in_bytes; //used for buffer SRV's, raw buffers, copy operations, and memory tracking
 
     //IF WE STORE THIS HERE IT WILL MAKE INJECTING A TEXTURE WITH IMGUI MUCH EASIER
+    //WE CAN ALSO USE THIS IF IT'S A STRUCTURED BUFFER INSTEAD OF A CONSTANT BUFFER
     ID3D12DescriptorHeap* srv_heap; 
 }slg_resource;
 typedef slg_resource slg_buffer; // alias slg_buffer as a resource type so we can use some of the same functions as textures
@@ -2178,7 +2180,7 @@ slg_pipeline _slg_d3d12_make_pipeline(slg_pipeline_desc* pipeline_desc){
             bind_desc_cbuffer[cbuffer_desc_count] = bind_desc;
             cbuffer_desc_count++;
         }
-        else if(bind_desc.Type == D3D_SIT_TEXTURE){
+        else if(bind_desc.Type == D3D_SIT_TEXTURE || bind_desc.Type == D3D_SIT_STRUCTURED){
             bind_desc_srv[srv_desc_count] = bind_desc;
             srv_desc_count++;
     
@@ -2195,7 +2197,7 @@ slg_pipeline _slg_d3d12_make_pipeline(slg_pipeline_desc* pipeline_desc){
             bind_desc_cbuffer[cbuffer_desc_count] = bind_desc;
             cbuffer_desc_count++;
         }
-        else if(bind_desc.Type == D3D_SIT_TEXTURE){
+        else if(bind_desc.Type == D3D_SIT_TEXTURE || bind_desc.Type == D3D_SIT_STRUCTURED){
             bind_desc_srv[srv_desc_count] = bind_desc;
             srv_desc_count++;
     
@@ -2748,8 +2750,33 @@ slg_buffer slg_make_buffer(slg_buffer_desc* buffer_desc){
     else{
         buf->size_in_bytes = buffer_desc->buffer_size;
     }
-    
     buf->stride = buffer_desc->buffer_stride;
+
+    //if the buffer is a structured buffer, we need to do some different stuff
+
+    if(buffer_desc->usage == SLG_BUFFER_USAGE_STRUCTURED_BUFFER){
+        D3D12_DESCRIPTOR_HEAP_DESC heap_desc = {
+            .NumDescriptors = 1,
+            .Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+            .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
+        };
+        desc.device->lpVtbl->CreateDescriptorHeap(desc.device,
+        &heap_desc,&IID_ID3D12DescriptorHeap,(void**)&buf->srv_heap);
+
+        D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle;
+        buf->srv_heap->lpVtbl->GetCPUDescriptorHandleForHeapStart(buf->srv_heap, &cpu_handle);
+
+        D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {0};
+        srv_desc.Format                     = DXGI_FORMAT_UNKNOWN;
+        srv_desc.ViewDimension              = D3D12_SRV_DIMENSION_BUFFER;
+        srv_desc.Shader4ComponentMapping    = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        srv_desc.Buffer.FirstElement        = 0;
+        srv_desc.Buffer.NumElements         = buffer_desc->buffer_size / buffer_desc->buffer_stride;
+        srv_desc.Buffer.StructureByteStride = buffer_desc->buffer_stride;
+        srv_desc.Buffer.Flags               = D3D12_BUFFER_SRV_FLAG_NONE;
+
+        desc.device->lpVtbl->CreateShaderResourceView(desc.device, buf->buffer, &srv_desc, cpu_handle);
+    }
     return *buf;
 }
 

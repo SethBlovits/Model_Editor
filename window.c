@@ -44,11 +44,14 @@ struct{
     AABB bounding_box;
     Mat4* skin_matrix;
     int num_skin_mat;
+    float animation_start;
+    float animation_current;
 
     slg_texture albedo;
     slg_render_texture normal;
 
     bool loaded_model;
+    bool is_playing_anim;
 
     slg_buffer vertex_buffer;
     slg_buffer index_buffer;
@@ -525,17 +528,17 @@ void load_gltf(char* path, int path_size){
 
     feature_flags flags = {0};
     
-    if(gltf_model.model.numberOfAnimations> 0){
+    if(gltf_model.model.numberOfAnimations > 0){
         flags.has_skinning = 1;
         object_data.skin_matrix = arena_alloc(&gltf_load_arena,gltf_model.model.numberOfNodes * sizeof(Mat4)); 
         object_data.num_skin_mat = gltf_model.model.numberOfNodes;
-        recalculateLocalTransformMatrix(gltf_model.model.nodes,gltf_model.model.numberOfNodes);
-        recalculateSkinningMatrix(gltf_model.model.nodes,gltf_model.model.numberOfNodes,(skinMatrix_t*)object_data.skin_matrix);
+        Anim_recalculateLocalTransformMatrix(gltf_model.model.nodes,gltf_model.model.numberOfNodes);
+        Anim_recalculateSkinningMatrix(gltf_model.model.nodes,gltf_model.model.numberOfNodes,object_data.skin_matrix);
         object_data.skin_buffer = slg_make_buffer(&(slg_buffer_desc){
             .buffer = (void*)object_data.skin_matrix,
             .buffer_size = gltf_model.model.numberOfNodes * sizeof(Mat4),
             .buffer_stride = sizeof(Mat4),
-            .usage = SLG_BUFFER_USAGE_CONSTANT_BUFFER
+            .usage = SLG_BUFFER_USAGE_STRUCTURED_BUFFER
         });
     }
     else{
@@ -546,11 +549,11 @@ void load_gltf(char* path, int path_size){
             .buffer = (void*)object_data.skin_matrix,
             .buffer_size = sizeof(Mat4),
             .buffer_stride = sizeof(Mat4),
-            .usage = SLG_BUFFER_USAGE_CONSTANT_BUFFER
+            .usage = SLG_BUFFER_USAGE_STRUCTURED_BUFFER
         }); 
     }
     //for now set skinning to be 0
-    flags.has_skinning = 0;
+    //flags.has_skinning = 0;
 
     //this is only a temporary fix for models that have only 1 material
     //support is needed for models with multiple meshes that have different materials per mesh
@@ -622,7 +625,7 @@ void load_gltf(char* path, int path_size){
             .TransformBuffer = transform_buffer,
             .LightPositions = light_buffer,
             .albedo = albedo_used,
-            .jointMat = object_data.skin_buffer
+            .joint_matrices = object_data.skin_buffer
         })
     });
 
@@ -682,19 +685,25 @@ void animation_preview_panel(){
         //we can't just send the current_app time.
         //we need to store start time, and pass the elapsed time since the start time
         if(igButton("Play Animation")){
-            if(animation_window.selected_index != -1){
-                playAnimation(object_data.gltf_data.model.animations[animation_window.selected_index],app_get_current_time(),&object_data.gltf_data.model.nodes[animation_window.selected_index]);
-            }
             
+            if(animation_window.selected_index != -1){
+                object_data.animation_start = app_get_current_time();
+                object_data.is_playing_anim = true;
+            }
         }
+        if(object_data.is_playing_anim){
+            object_data.animation_current = app_get_current_time() - object_data.animation_start;
+            playAnimation(object_data.gltf_data.model.animations[animation_window.selected_index],object_data.animation_current,&object_data.gltf_data.model.nodes[animation_window.selected_index]);
+        }
+       
         
         igText("Current Time: %0.2f",app_get_current_time());
 
         igEnd();
 
         //recalculate the matrix in here maybe for organization purposes??????
-        Anim_recalculateLocalTransformMatrix(object_data.gltf_data.model.nodes,object_data.gltf_data.model.numberOfNodes);
-        Anim_recalculateSkinningMatrix(object_data.gltf_data.model.nodes,object_data.gltf_data.model.numberOfNodes,object_data.skin_matrix);
+        //Anim_recalculateLocalTransformMatrix(object_data.gltf_data.model.nodes,object_data.gltf_data.model.numberOfNodes);
+        //Anim_recalculateSkinningMatrix(object_data.gltf_data.model.nodes,object_data.gltf_data.model.numberOfNodes,object_data.skin_matrix);
     
 
     }
