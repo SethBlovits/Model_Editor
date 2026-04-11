@@ -2504,6 +2504,14 @@ slg_bindings _slg_d3d12_make_bindings(slg_bindings_desc* bind_desc){
                 srvDesc.Texture2DArray.MipLevels = 1;
                 srvDesc.Texture2DArray.FirstArraySlice = 0;
             }
+            else if(temp_desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER){
+                srvDesc.Format                     = DXGI_FORMAT_UNKNOWN;
+                srvDesc.ViewDimension              = D3D12_SRV_DIMENSION_BUFFER;
+                srvDesc.Buffer.FirstElement        = 0;
+                srvDesc.Buffer.NumElements         = (UINT)(temp_desc.Width / bind_desc->uniforms.srv_buffer[i].stride);
+                srvDesc.Buffer.StructureByteStride = bind_desc->uniforms.srv_buffer[i].stride;
+                srvDesc.Buffer.Flags               = D3D12_BUFFER_SRV_FLAG_NONE;
+            }
             else{
                 srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
                 srvDesc.Texture2D.MostDetailedMip = 0;

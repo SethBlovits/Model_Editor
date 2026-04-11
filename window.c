@@ -534,6 +534,26 @@ void load_gltf(char* path, int path_size){
         object_data.num_skin_mat = gltf_model.model.numberOfNodes;
         Anim_recalculateLocalTransformMatrix(gltf_model.model.nodes,gltf_model.model.numberOfNodes);
         Anim_recalculateSkinningMatrix(gltf_model.model.nodes,gltf_model.model.numberOfNodes,object_data.skin_matrix);
+        for(int i = 0;i<object_data.num_skin_mat;i++){
+            printf("[%0.02f],[%0.02f],[%0.02f],[%0.02f]\n",object_data.skin_matrix[i].Elements[0][0],
+            object_data.skin_matrix[i].Elements[1][0],
+            object_data.skin_matrix[i].Elements[2][0],
+            object_data.skin_matrix[i].Elements[3][0]);
+            printf("[%0.02f],[%0.02f],[%0.02f],[%0.02f]\n",object_data.skin_matrix[i].Elements[0][1],
+            object_data.skin_matrix[i].Elements[1][1],
+            object_data.skin_matrix[i].Elements[2][1],
+            object_data.skin_matrix[i].Elements[3][1]);
+            printf("[%0.02f],[%0.02f],[%0.02f],[%0.02f]\n",object_data.skin_matrix[i].Elements[0][2],
+            object_data.skin_matrix[i].Elements[1][2],
+            object_data.skin_matrix[i].Elements[2][2],
+            object_data.skin_matrix[i].Elements[3][2]);
+            printf("[%0.02f],[%0.02f],[%0.02f],[%0.02f]\n",object_data.skin_matrix[i].Elements[0][3],
+            object_data.skin_matrix[i].Elements[1][3],
+            object_data.skin_matrix[i].Elements[2][3],
+            object_data.skin_matrix[i].Elements[3][3]);
+            printf("-------------------------------\n");
+        }
+        printf("size: %d",gltf_model.model.numberOfNodes * sizeof(Mat4));
         object_data.skin_buffer = slg_make_buffer(&(slg_buffer_desc){
             .buffer = (void*)object_data.skin_matrix,
             .buffer_size = gltf_model.model.numberOfNodes * sizeof(Mat4),
@@ -552,6 +572,17 @@ void load_gltf(char* path, int path_size){
             .usage = SLG_BUFFER_USAGE_STRUCTURED_BUFFER
         }); 
     }
+    /*flags.has_skinning = 1;
+    object_data.skin_matrix = arena_alloc(&gltf_load_arena,sizeof(Mat4));
+    object_data.skin_matrix[0] = identityMat4();
+    object_data.num_skin_mat = 1;
+    object_data.skin_buffer = slg_make_buffer(&(slg_buffer_desc){
+        .buffer = (void*)object_data.skin_matrix,
+        .buffer_size = sizeof(Mat4),
+        .buffer_stride = sizeof(Mat4),
+        .usage = SLG_BUFFER_USAGE_STRUCTURED_BUFFER
+    });*/ 
+
     //for now set skinning to be 0
     //flags.has_skinning = 0;
 
@@ -927,7 +958,7 @@ void frame(){
         slg_update_buffer(transform_buffer,(void*)&Transform_Matrices,sizeof(Transform_Matrices));
     }
     if(object_data.loaded_model){
-        slg_update_buffer(object_data.skin_buffer,(void*)&object_data.skin_matrix,sizeof(Mat4)*object_data.num_skin_mat);
+        slg_update_buffer(object_data.skin_buffer,(void*)object_data.skin_matrix,sizeof(Mat4)*object_data.num_skin_mat);
     }
     
     slg_begin_offscreen_pass(&offscreen_pass);

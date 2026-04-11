@@ -55,13 +55,17 @@ cbuffer FeatureFlags : register(b2){
     int _pad; // pad to 32 bytes
 };
 Texture2D albedo : register(t0);
-Texture2D normal_map : register(t1);
-Texture2D tangent_map : register(t2);
-Texture2D metallic_roughness : register(t3);
-Texture2D emissive : register(t4);
-Texture2D occlusion : register(t5);
+//Texture2D normal_map : register(t1);
+//Texture2D tangent_map : register(t2);
+//Texture2D metallic_roughness : register(t3);
+//Texture2D emissive : register(t4);
+//Texture2D occlusion : register(t5);
 
-StructuredBuffer<float4x4> joint_matrices : register(t6);
+struct JointMatrix {
+    float4x4 mat;
+};
+
+StructuredBuffer<JointMatrix> joint_matrices  : register(t1);
 
 SamplerState g_sampler : register(s0);
 
@@ -69,16 +73,16 @@ SamplerState g_sampler : register(s0);
 void calc_skin_pos(in float3 pos, in float4 joint_weight, in float4 joint_index, out float3 skin_pos){
     float4x4 skin_mat = (float4x4)0;
     if(joint_weight.x>0){
-        skin_mat += joint_weight.x*joint_matrices[int(joint_index.x)];
+        skin_mat += joint_weight.x*joint_matrices[int(joint_index.x)].mat;
     }
     if(joint_weight.y>0){
-        skin_mat += joint_weight.y*joint_matrices[int(joint_index.y)];
+        skin_mat += joint_weight.y*joint_matrices[int(joint_index.y)].mat;
     }
     if(joint_weight.z>0){
-        skin_mat += joint_weight.z*joint_matrices[int(joint_index.z)];
+        skin_mat += joint_weight.z*joint_matrices[int(joint_index.z)].mat;
     }
     if(joint_weight.w>0){
-        skin_mat += joint_weight.w*joint_matrices[int(joint_index.w)];
+        skin_mat += joint_weight.w*joint_matrices[int(joint_index.w)].mat;
     }
     if(dot(joint_weight,float4(1,1,1,1))==0){
         skin_mat = float4x4(
@@ -89,7 +93,9 @@ void calc_skin_pos(in float3 pos, in float4 joint_weight, in float4 joint_index,
         );//if there is no joint weighting. The skinning mat should be identity matrix
     }
     skin_pos = mul(skin_mat,float4(pos,1.0f)).xyz;
+    //skin_pos = pos;
 }
+
 
 PSInput VSMain(VSInput input)
 {
@@ -97,12 +103,14 @@ PSInput VSMain(VSInput input)
     if(has_skinning){
         float3 skin_pos;
         calc_skin_pos(input.position,input.joint_weights,input.joint_indices,skin_pos);
+        //calc_skin_pos_2(input.position,skin_pos);
         result.position  = mul(mvpMatrix, float4(skin_pos, 1.0f));
         result.world_pos = mul(modelMatrix, float4(skin_pos, 1.0f)).xyz;
     }
     else{
         result.position  = mul(mvpMatrix, float4(input.position, 1.0f));
         result.world_pos = mul(modelMatrix, float4(input.position, 1.0f)).xyz;
+        result.position = mul(joint_matrices[0].mat,result.position);
     }
     //result.position  = mul(mvpMatrix, float4(input.position, 1.0f));
     //result.world_pos = mul(modelMatrix, float4(input.position, 1.0f)).xyz;

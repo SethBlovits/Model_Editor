@@ -7,7 +7,7 @@
 #define HLSL_SHADER_SOURCE_UBERSHADER "ubershader.hlsl"
 #define VERTEX_SHADER_SOURCE_UBERSHADER "ubershader_vs.cso" 
 #define FRAGMENT_SHADER_SOURCE_UBERSHADER "ubershader_ps.cso" 
-#define BINDSLOT_UBERSHADER_joint_matrices 6
+#define BINDSLOT_UBERSHADER_joint_matrices 1
 #define BINDSLOT_UBERSHADER_TransformBuffer 0
 #define BINDSLOT_UBERSHADER_FeatureFlags 2
 #define BINDSLOT_UBERSHADER_g_sampler 0
