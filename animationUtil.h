@@ -226,6 +226,15 @@ void Anim_recalculateLocalTransformMatrix(Node_t *nodes,int numberOfNodes){
         Mat4 transformTest2 = nodes[i].transformMatrix;
     }
 }
+
+//This function is going to be for the logic with easing into the animation,
+//out of the animation,
+
+void Anim_animate(){
+    // I kinda just need to take in all the information
+    
+}
+
 #endif //impl endif
 
 

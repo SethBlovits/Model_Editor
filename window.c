@@ -45,13 +45,16 @@ struct{
     Mat4* skin_matrix;
     int num_skin_mat;
     float animation_start;
+    float animation_transition_time;
     float animation_current;
 
     slg_texture albedo;
     slg_render_texture normal;
 
     bool loaded_model;
+    bool is_starting_anim;
     bool is_playing_anim;
+    bool is_ending_anim;
 
     slg_buffer vertex_buffer;
     slg_buffer index_buffer;
@@ -719,12 +722,45 @@ void animation_preview_panel(){
             
             if(animation_window.selected_index != -1){
                 object_data.animation_start = app_get_current_time();
+                object_data.is_starting_anim = true;
+                object_data.is_playing_anim = false;
+                object_data.is_ending_anim = false;
+            
+            }
+            object_data.animation_transition_time = 0.2f;
+        }
+        if(object_data.is_starting_anim){
+            
+            object_data.animation_current = app_get_current_time() - object_data.animation_start;
+            if(object_data.animation_current >= object_data.animation_transition_time){
+                object_data.is_starting_anim = false;
                 object_data.is_playing_anim = true;
+                object_data.is_ending_anim = false;
+                object_data.animation_start = app_get_current_time();
+            }
+            else{
+                getTransitionNodeData(object_data.gltf_data.model.nodes,object_data.gltf_data.model.numberOfNodes);
+                EaseToAnimation(object_data.gltf_data.model.animations[animation_window.selected_index],
+                    object_data.gltf_data.model.nodes,
+                    object_data.gltf_data.model.numberOfNodes,
+                    object_data.animation_current,
+                    object_data.animation_transition_time);
+                Anim_recalculateLocalTransformMatrix(object_data.gltf_data.model.nodes,object_data.gltf_data.model.numberOfNodes);
+                Anim_recalculateSkinningMatrix(object_data.gltf_data.model.nodes,object_data.gltf_data.model.numberOfNodes,object_data.skin_matrix);
             }
         }
         if(object_data.is_playing_anim){
             object_data.animation_current = app_get_current_time() - object_data.animation_start;
-            playAnimation(object_data.gltf_data.model.animations[animation_window.selected_index],object_data.animation_current,&object_data.gltf_data.model.nodes[animation_window.selected_index]);
+            playAnimation(object_data.gltf_data.model.animations[animation_window.selected_index],object_data.animation_current,object_data.gltf_data.model.nodes);
+            Anim_recalculateLocalTransformMatrix(object_data.gltf_data.model.nodes,object_data.gltf_data.model.numberOfNodes);
+            Anim_recalculateSkinningMatrix(object_data.gltf_data.model.nodes,object_data.gltf_data.model.numberOfNodes,object_data.skin_matrix);
+           /* if(object_data.gltf_data.){
+
+            }*/
+
+        }
+        else if(object_data.is_ending_anim){
+
         }
        
         
