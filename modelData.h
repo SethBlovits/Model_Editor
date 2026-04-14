@@ -1069,9 +1069,6 @@ void playAnimation(Animation_t animation,float currentTime,Node_t *nodes){
                 float smallerTime = sampler.sampler_time[t-1];
                 float biggerTime = sampler.sampler_time[t];
                 float interpolationTime = (currentTime - smallerTime)/(biggerTime-smallerTime);
-                if(interpolationTime>1){
-                    //printf("breakpoint");
-                }
                 //printf("debug");
                 //we need to collect the two sampler times as well as the data points
                 //and interpolate them depending upon the the time

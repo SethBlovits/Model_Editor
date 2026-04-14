@@ -48,6 +48,8 @@ struct{
     float animation_transition_time;
     float animation_current;
 
+    float current_animation_duration;
+
     slg_texture albedo;
     slg_render_texture normal;
 
@@ -725,7 +727,8 @@ void animation_preview_panel(){
                 object_data.is_starting_anim = true;
                 object_data.is_playing_anim = false;
                 object_data.is_ending_anim = false;
-            
+                getTransitionNodeData(object_data.gltf_data.model.nodes,object_data.gltf_data.model.numberOfNodes);
+                object_data.current_animation_duration = object_data.gltf_data.model.animations[animation_window.selected_index].animationDuration;
             }
             object_data.animation_transition_time = 0.2f;
         }
@@ -737,9 +740,10 @@ void animation_preview_panel(){
                 object_data.is_playing_anim = true;
                 object_data.is_ending_anim = false;
                 object_data.animation_start = app_get_current_time();
+                getTransitionNodeData(object_data.gltf_data.model.nodes,object_data.gltf_data.model.numberOfNodes);
             }
             else{
-                getTransitionNodeData(object_data.gltf_data.model.nodes,object_data.gltf_data.model.numberOfNodes);
+               
                 EaseToAnimation(object_data.gltf_data.model.animations[animation_window.selected_index],
                     object_data.gltf_data.model.nodes,
                     object_data.gltf_data.model.numberOfNodes,
@@ -754,13 +758,33 @@ void animation_preview_panel(){
             playAnimation(object_data.gltf_data.model.animations[animation_window.selected_index],object_data.animation_current,object_data.gltf_data.model.nodes);
             Anim_recalculateLocalTransformMatrix(object_data.gltf_data.model.nodes,object_data.gltf_data.model.numberOfNodes);
             Anim_recalculateSkinningMatrix(object_data.gltf_data.model.nodes,object_data.gltf_data.model.numberOfNodes,object_data.skin_matrix);
-           /* if(object_data.gltf_data.){
-
-            }*/
+            
+            if(object_data.animation_current >= object_data.current_animation_duration){
+                object_data.is_ending_anim = true;
+                object_data.is_playing_anim = false;
+                object_data.is_starting_anim = false;
+                getTransitionNodeData(object_data.gltf_data.model.nodes,object_data.gltf_data.model.numberOfNodes);
+                object_data.animation_start = app_get_current_time();
+            }
 
         }
-        else if(object_data.is_ending_anim){
-
+        if(object_data.is_ending_anim){
+            object_data.animation_current = app_get_current_time() - object_data.animation_start;
+            if(object_data.animation_current < object_data.animation_transition_time){
+                EaseToHome(object_data.gltf_data.model.nodes,
+                    object_data.gltf_data.model.numberOfNodes,
+                    object_data.animation_current,
+                    object_data.animation_transition_time);
+                Anim_recalculateLocalTransformMatrix(object_data.gltf_data.model.nodes,object_data.gltf_data.model.numberOfNodes);
+                Anim_recalculateSkinningMatrix(object_data.gltf_data.model.nodes,object_data.gltf_data.model.numberOfNodes,object_data.skin_matrix);
+            }
+            else{
+                object_data.is_starting_anim = false;
+                object_data.is_playing_anim = false;
+                object_data.is_ending_anim = false;
+            }
+            
+            
         }
        
         
