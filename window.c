@@ -19,6 +19,9 @@
 #include "modelData.h"
 #define ANIMATION_UTIL_IMPLEMENTATION
 #include "animationUtil.h"
+#define ASSET_MANAGER_IMPLEMENTATION
+#include "asset_manager.h"
+
 
 #include "offscreen_pass_hlsl.h"
 #include "ubershader_hlsl.h"
@@ -189,7 +192,10 @@ slg_pipeline debug_pipeline;
 slg_bindings debug_bindings;
 
 Arena gltf_load_arena;
-uint8_t gltf_load_arena_backing_buffer[1048576];
+uint8_t gltf_load_arena_backing_buffer[1048576]; //1 Megabyte of scratch space;
+
+Arena char_buffer_arena;
+uint8_t char_buffer_arena_backing_buffer[1048576]; //1 Megabyte of scratch space;
 
 Vertex* fox_vertex;
 size_t fox_vertex_size;  
@@ -205,6 +211,9 @@ void init(){
 
     arena_init(&gltf_load_arena,gltf_load_arena_backing_buffer,1048576);
     gltf_load_arena.name = "gltf_arena";
+
+    arena_init(&char_buffer_arena,char_buffer_arena_backing_buffer,sizeof(char_buffer_arena_backing_buffer));
+    char_buffer_arena.name = "char_buffer_arena";
     //slg_arena.name = "main_arena";
     slg_d3d12_state.appdata.width = APP_WIDTH;
     slg_d3d12_state.appdata.height = APP_HEIGHT;
@@ -215,6 +224,7 @@ void init(){
 
     //DEMO CUBE RESOURCES
 
+    load_asset("C:\\MaterialEditor\\fox.asset",MAX_PATH);
     Vertex cubeVertices[] = {
        // Front face (-Z)  normal = 0, 0, -1
     { {-1,-1,-1}, { 0, 0,-1}, {0,1} },
@@ -971,6 +981,59 @@ void material_editor(){
 
 }
 
+void generate_asset(){
+
+    //create a giant character buffer that's the size of the arena
+    //it's really the only thing thats going to go in there.
+    char* out_buffer = arena_alloc(&char_buffer_arena,sizeof(char_buffer_arena_backing_buffer));
+    int buf_index = 0;
+    /*
+    So I want to create a header file the has a all the details of the object.
+
+    -Name
+
+    -Vertex Buffer
+    -Index Buffer
+
+    I think this file should consist of TWO PARTS
+
+    PART 1: ALL THE INFORMATION REQUIRED TO LOAD DATA UPON STARTUP
+
+    -Gltf File path
+        On Load(These will be emtpy until loaded at startup):
+        -Gltf Model Data
+        -Animations
+    Rendering Information:
+        -Textures(File path or buffers??)
+            -Albedo
+            -Normal
+            -Tangent
+            -Metallic
+        -Material Parameters
+            -Albedo
+            -Diffuse
+            -Specular
+        -Shader(This is kind of everything that is contained in the reflection header file)
+            -Shader Desc
+            -Uniforms
+            -Bind_Desc
+
+    PART 2: ALL THE SCAFFOLDING TO RENDER. This should be like everything that's create on startup
+    */
+    const char* model_name = "fox";
+    sprintf(out_buffer,"#ifndef %s_object_data_h\n#define %s_object_data_s\n",model_name,model_name);
+    buf_index = strlen(out_buffer);
+
+    //slg_bindings
+
+
+
+    
+
+}
+
+
+
 void frame(){
     app_get_cursor_pos(&slimgui_input_state.mouse_x,&slimgui_input_state.mouse_y);
     slg_begin_frame();
@@ -1051,7 +1114,8 @@ void frame(){
             
         }
         if(igMenuItem("Save")){
-            //do nothing yet
+            //trigger a function that will let me preview and save my output file
+            //generate_header();
         }
         if(igMenuItem("Export")){
             //do nothing yet
