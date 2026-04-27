@@ -4,6 +4,9 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+
 #define APP_UTILITY_IMPLEMENTATION
 #include "app_utility.h"
 //#include <d3d12.h>
@@ -208,7 +211,7 @@ void init(){
 
     //uint8_t arena_backingBuffer[131072];
     //arena_init(&slg_arena,arena_backingBuffer,131072);
-
+    
     arena_init(&gltf_load_arena,gltf_load_arena_backing_buffer,1048576);
     gltf_load_arena.name = "gltf_arena";
 
@@ -401,6 +404,15 @@ void init(){
     offscreen_pass.bind = offscreen_bindings;
     offscreen_pass.pip = offscreen_pip; 
     
+    /*slg_bindings offscreen_bindings = slg_make_bindings(&(slg_bindings_desc){
+        .index_buffer = index_buffer,
+        .vertex_buffer = vertex_buffer,
+        .uniforms = OFFSCREEN_PASS_HLSL_MAKE_UNIFORMS((OFFSCREEN_PASS_HLSL_UNIFORMS){
+            .albedo = texture,
+            .TransformBuffer = transform_buffer,
+            .LightPositions = light_buffer,
+        })
+    });*/
     //load_gltf("C:\\MaterialEditor\\test_gltf\\Fox.gltf",MAX_PATH);
     slg_close_setup();
 
@@ -1119,6 +1131,14 @@ void frame(){
         }
         if(igMenuItem("Export")){
             //do nothing yet
+            void* out_pixels = malloc(offscreen_pass.color_target.tex->width * offscreen_pass.color_target.tex->height * 4);
+            int out_width = 0;
+            int out_height = 0;
+            int out_pix_byte_size = 0;
+            d3d12_copyRTtoCPUbuffer(out_pixels,offscreen_pass.color_target,&out_width,&out_height,&out_pix_byte_size);
+
+            stbi_write_jpg("test_image.jpg",out_width,out_height,out_pix_byte_size,out_pixels,90);
+            free(out_pixels);
         }
         igEndMenu();
         

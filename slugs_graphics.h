@@ -1183,7 +1183,112 @@ void d3d12_moveToNextFrame() {
     }
     framebuffer->frame_context[framebuffer->frameIndex].fenceValue = currentFenceValue + 1;
 }
+void d3d12_copyRTtoCPUbuffer(void* pixels,slg_render_texture rt,int* out_width,int* out_height,int* out_pix_size){
+    slg_desc_t *desc = &slg_d3d12_state.desc;
 
+    D3D12_RESOURCE_DESC temp_Desc; 
+    rt.tex->buffer->lpVtbl->GetDesc(rt.tex->buffer,&temp_Desc);
+    const D3D12_RESOURCE_DESC Desc = temp_Desc;
+    //pDevice->lpVtbl->GetCopyableFootprints(pDevice,&Desc,FirstSubresource,NumSubresources,IntermediateOffset,pLayouts,pNumRows,pRowSizesInBytes,&required_size);
+    UINT64 requiredSize = 0;
+    D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint;
+    UINT numRows = 0;
+    UINT64 rowSizeInBytes = 0;
+    UINT64 totalBytes = 0;
+
+    desc->device->lpVtbl->GetCopyableFootprints(desc->device,&Desc,0,1,0,&footprint,&numRows,&rowSizeInBytes,&requiredSize);
+
+    totalBytes = requiredSize;
+
+
+    ID3D12Resource* readbackBuffer;
+    D3D12_RESOURCE_DESC buffer_desc = {0};
+
+    buffer_desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    buffer_desc.Alignment = 0;
+    buffer_desc.Width = totalBytes;
+    buffer_desc.Height = 1;
+    buffer_desc.DepthOrArraySize = 1;
+    buffer_desc.MipLevels = 1;
+    buffer_desc.Format = DXGI_FORMAT_UNKNOWN;
+    buffer_desc.SampleDesc.Count = 1;
+    buffer_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    buffer_desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    D3D12_HEAP_PROPERTIES heapProps = {0};
+    heapProps.Type = D3D12_HEAP_TYPE_READBACK;
+    heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+
+    desc->device->lpVtbl->CreateCommittedResource(desc->device,
+        &heapProps,
+        D3D12_HEAP_FLAG_NONE,
+        &buffer_desc,
+        D3D12_RESOURCE_STATE_COPY_DEST,
+        NULL,
+        &IID_ID3D12Resource,
+        (void**)&readbackBuffer
+    );
+    ID3D12GraphicsCommandList* command_list = desc->commandList;
+
+    D3D12_RESOURCE_BARRIER barrier = {0};
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+    barrier.Transition.pResource = rt.tex->buffer;
+    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    // NOTE: In production you must know the actual previous state. Using COMMON may be wrong.
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COMMON;
+    barrier.Transition.StateAfter  = D3D12_RESOURCE_STATE_COPY_SOURCE;
+    command_list->lpVtbl->ResourceBarrier(command_list, 1, &barrier);
+
+
+    D3D12_TEXTURE_COPY_LOCATION srcLoc = {0};
+    srcLoc.pResource = rt.tex->buffer;
+    srcLoc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+    srcLoc.SubresourceIndex = 0;
+
+    D3D12_TEXTURE_COPY_LOCATION dstLoc = {0};
+    dstLoc.pResource = readbackBuffer;
+    dstLoc.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+    dstLoc.PlacedFootprint = footprint;
+
+    command_list->lpVtbl->CopyTextureRegion(command_list,&dstLoc,0,0,0,&srcLoc,NULL);
+    command_list->lpVtbl->Close(command_list);
+    ID3D12CommandList* ppCommandList[] = {(ID3D12CommandList*)command_list};
+    desc->commandQueue->lpVtbl->ExecuteCommandLists(desc->commandQueue,1,ppCommandList);
+
+    d3d12_waitForGPU();
+
+    uint8_t* mappedData = NULL;
+    D3D12_RANGE readRange = { 0, (size_t)totalBytes };
+    readbackBuffer->lpVtbl->Map(readbackBuffer,0,&readRange,(void**)&mappedData);
+
+    const uint8_t* srcBase = mappedData + footprint.Offset;
+    UINT64 srcRowPitch = footprint.Footprint.RowPitch;
+    UINT width = (UINT)Desc.Width;
+    UINT height = Desc.Height;
+    const UINT bytesPerPixel = 4; // adjust if your format differs
+
+    //pixels = malloc(width*height*bytesPerPixel);
+
+    uint8_t* dst = (uint8_t*)pixels;
+    for (UINT row = 0; row < height; ++row) {
+        const uint8_t* srcRow = srcBase + (size_t)row * srcRowPitch;
+        uint8_t* dstRow = dst + (size_t)row * (size_t)width * bytesPerPixel;
+        memcpy(dstRow, srcRow, (size_t)width * bytesPerPixel);
+    }
+    D3D12_RANGE writtenRange = { 0, 0 };
+    readbackBuffer->lpVtbl->Unmap(readbackBuffer, 0, &writtenRange);
+
+    *out_width = (int)width;
+    *out_height = (int)height;
+    *out_pix_size = (int)bytesPerPixel;
+
+    //readbackBuffer->lpVtbl->Release(readbackBuffer);
+
+    return;
+
+}
 inline void d3d12_memcpySubresource(
     const D3D12_MEMCPY_DEST* pDest,
     const D3D12_SUBRESOURCE_DATA* pSrc,

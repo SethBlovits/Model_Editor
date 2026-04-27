@@ -3,18 +3,18 @@ version 1.0
 Asset: fox
 {
     Object:
-    Gltf_File = test_gltf/Fox.gltf,
-    Albedo = test_gltf\Texture.png,
-    Shader = ubershader.hlsl,
+    Gltf_File:test_gltf/Fox.gltf;
+    Albedo:test_gltf\Texture.png;
+    Shader:ubershader.hlsl;
 
     Material:
-    Diffuse = (1,1,1,1),
-    Specular = (1,1,1,1),
+    Diffuse:(1,1,1,1);
+    Specular:(1,1,1,1);
 
     Transform:
-    Position = (0,0,0,0),
-    Rotation = (0,0,0,0),
-    Scale = (1,1,1,1)    
+    Position:(1,5,3);
+    Rotation:(0,0,0);
+    Scale:(1,1,1);    
 
 }
 
