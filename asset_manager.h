@@ -34,28 +34,68 @@ typedef struct{
 
 
 //smaller function to get bools. Will be reused alot
-bool get_bool_member(const char* field,char* buffer,FILE* fileptr){
-    char* field_char = strstr(buffer,field);
+bool get_bool_member(const char* field,FILE* fileptr){
+    char buffer[MAX_PATH];
+    long section_start = ftell(fileptr);
     char field_value[MAX_PATH];
     int field_value_index = 0;
-    if(field_char){
-        field_char += strlen(field);
-        while(*field_char != ';' && field_char != '\n'){
-            field_value[field_value_index] = *field_char;
-            field_char++;
-            field_value_index++;
-            assert(field_value_index < MAX_PATH);
-        }
-        field_value[field_value_index] = '\0';
-        char* endptr;
-        if(strstr(field_value,"true")){
-            return true;
-        }
-        else{
-            return false;
-        }
+
+    while(fgets(buffer,MAX_PATH,fileptr)){
+        char* field_char = strstr(buffer,field);
+        if(field_char){
+            field_char += strlen(field) + 1;
+            while(*field_char != ';' && *field_char != '\n'){
+                field_value[field_value_index] = *field_char;
+                field_char++;
+                field_value_index++;
+                assert(field_value_index < MAX_PATH);
+            }
+            field_value[field_value_index] = '\0';
+            if(strstr(field_value,"true")){
+                fseek(fileptr,section_start,SEEK_SET);
+                return true;
+            }
+            else{
+                fseek(fileptr,section_start,SEEK_SET);
+                return false;
+            }
         
+        }
     }
+
+    
+    return false;
+
+}
+
+int get_int_member(const char* field,FILE* fileptr){
+    char buffer[MAX_PATH];
+    long section_start = ftell(fileptr);
+    char field_value[MAX_PATH];
+    int field_value_index = 0;
+
+    while(fgets(buffer,MAX_PATH,fileptr)){
+        char* field_char = strstr(buffer,field);
+        if(field_char){
+            field_char += strlen(field) + 1;
+            while(*field_char != ';' && *field_char != '\n'){
+                field_value[field_value_index] = *field_char;
+                field_char++;
+                field_value_index++;
+                assert(field_value_index < MAX_PATH);
+            }
+            field_value[field_value_index] = '\0';
+            fseek(fileptr,section_start,SEEK_SET);
+            char* endptr;
+            long num = strtol(field_value, &endptr, 10);
+            return (int)num;
+        }
+    }
+
+    
+    return 0;
+
+
 
 }
 
@@ -66,7 +106,7 @@ bool get_bool_member(const char* field,char* buffer,FILE* fileptr){
 void pull_member_filepath(Asset_t* asset,char* sub_string,FILE* fileptr){
 
     char buffer[MAX_PATH];
-
+    
     while(fgets(buffer,MAX_PATH,fileptr)){
         char* sub_start = strstr(buffer,sub_string);
         //this returns a pointer to the start of the substring
@@ -167,7 +207,16 @@ void pull_depth_stencil(slg_depth_stencil_desc* depth_desc,FILE* fileptr){
     while(fgets(buffer,MAX_PATH,fileptr)){
         if(strstr(buffer,"Depth Stencil")){
             section_start = ftell(fileptr);
+            break;
         }
+    }
+
+    depth_desc->depth_enable = get_bool_member("Depth_Enable",fileptr);
+    depth_desc->stencil_enable = get_bool_member("Stencil_Enable",fileptr);
+    depth_desc->write_mask = get_int_member("Depth_Write_Mask",fileptr);
+    depth_desc->compare_func = get_int_member("Depth_Compare_Func",fileptr);
+
+
     /*  field_char = strstr(buffer,"Depth_Enable:");
         if(field_char){
             field_char += strlen("Depth_Enable:");
@@ -191,6 +240,7 @@ void pull_depth_stencil(slg_depth_stencil_desc* depth_desc,FILE* fileptr){
             //fseek(fileptr,section_start,SEEK_SET);
         }
     */
+    /*
         field_char = strstr(buffer,"Stencil_Enable:");
         if(field_char){
             field_char += strlen("Stencil_Enable:");
@@ -202,8 +252,7 @@ void pull_depth_stencil(slg_depth_stencil_desc* depth_desc,FILE* fileptr){
             }
             field_value[field_value_index] = '\0';
             char* endptr;
-            /*long num = strtol(field_value, &endptr, 10);
-            depth_desc->depth_enable = (int)num;*/
+           
             if(strstr(field_value,"true")){
                 depth_desc->stencil_enable = true;
             }
@@ -214,14 +263,14 @@ void pull_depth_stencil(slg_depth_stencil_desc* depth_desc,FILE* fileptr){
             field_value_index = 0;
             //fseek(fileptr,section_start,SEEK_SET);
         }
-        
-    }
-
-
+    */  
 }
+
+
+
 //if i dont make the asset file standardized then I have to check for each parameter
 void make_asset_pipeline(slg_pipeline* pip,FILE* fileptr){
-    char buffer[MAX_PATH];
+    //char buffer[MAX_PATH];
 
    /* while(fgets(buffer,MAX_PATH,)){
         char* sub_start = strstr(buffer,"Pipeline Desc:");
