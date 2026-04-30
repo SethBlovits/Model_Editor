@@ -228,6 +228,7 @@ typedef struct slg_shader_source_data slg_shader_source_data;
 typedef struct{ // object data -> object type with _t
     ID3DBlob* VertexShaderBlob;
     ID3DBlob* PixelShaderBlob;
+    char shader_name[MAX_PATH];
     char hlsl_name[MAX_PATH];
     char vert_shader_cso[MAX_PATH];
     char frag_shader_cso[MAX_PATH];
@@ -1649,6 +1650,11 @@ static inline slg_shader _slg_d3d12_make_shader(slg_shader_desc* shader_desc){
     strncpy(shd.shader_ptr->frag_shader_cso,shader_desc->frag_shader_name,sizeof(shd.shader_ptr->frag_shader_cso));
     strncpy(shd.shader_ptr->hlsl_name,shader_desc->filename,sizeof(shd.shader_ptr->hlsl_name));
     
+    char shader_handle[MAX_PATH];
+    char* end_pointer = strstr(shd.shader_ptr->hlsl_name,".");
+    size_t len = end_pointer - shd.shader_ptr->hlsl_name;
+    
+    memcpy(shader_handle,shd.shader_ptr->hlsl_name,end_pointer - shd.shader_ptr->hlsl_name);
     
     d3d12_throwIfFailed(D3DReadFileToBlob(vert_shader_name, &shd.shader_ptr->VertexShaderBlob));
     d3d12_throwIfFailed(D3DReadFileToBlob(frag_shader_name, &shd.shader_ptr->PixelShaderBlob));

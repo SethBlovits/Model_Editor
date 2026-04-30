@@ -227,7 +227,7 @@ void init(){
 
     //DEMO CUBE RESOURCES
 
-    load_asset("C:\\MaterialEditor\\fox.asset",MAX_PATH);
+    //load_asset("C:\\MaterialEditor\\fox.asset",MAX_PATH);
     Vertex cubeVertices[] = {
        // Front face (-Z)  normal = 0, 0, -1
     { {-1,-1,-1}, { 0, 0,-1}, {0,1} },

@@ -1,0 +1,63 @@
+version 1.0
+
+Asset: fox
+{
+    Object:
+    Gltf_File:test_gltf/Fox.gltf;
+    Albedo:test_gltf\Texture.png;
+    Shader:ubershader.hlsl;
+    Shader_Helper:ubershader_hlsl.h;
+    
+    # Depth Stencil
+    Depth_Enable:true;
+    Stencil_Enable:false;
+    Depth_Write_Mask:2;
+    Depth_Compare_Func:2;
+    
+    # Rasterizer
+    Cull_Mode:2;
+    Fill_Mode:3;
+    Facewinding_Mode:2;
+    Conservative_Rasterization_Mode:0;
+    Depth_Bias:0;
+    Depth_Bias_Clamp:0.0;
+    Slope_Scaled_Depth_Bias:0.0;
+    Depth_Clip_Enable:false;
+    Multisample_Enable:false;
+    Antialiased_Line_Enable:false;
+    Forced_Sample_Count:0;
+    
+    # Blend
+    Alpha_To_Coverage_Enable:false;
+    Independent_Blend_Enable:false;
+    Blend_Enable:false;
+    Logic_Op_Enable:false;
+    Src_Blend:2;
+    Dest_Blend:1;
+    Blend_Op:1;
+    Src_Blend_Alpha:2;
+    Dest_Blend_Alpha:1;
+    Blend_Op_Alpha:1;
+    Logic_Op:0;
+    Color_Write_Enable_Red:1;
+    Color_Write_Enable_Green:1;
+    Color_Write_Enable_Blue:1;
+    Color_Write_Enable_Alpha:1;
+    
+    # Pipeline
+    Primitive_Topology_Type:4;
+    Num_Render_Targets:1;
+    Sample_Count:1;
+    Sample_Mask:4294967295;
+
+    Material:
+    Diffuse:(1,1,1,1);
+    Specular:(1,1,1,1);
+
+    Transform:
+    Position:(1,5,3);
+    Rotation:(0,0,0);
+    Scale:(1,1,1);    
+
+}
+
