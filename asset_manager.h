@@ -5,6 +5,7 @@
 #include <string.h>
 #include "mathUtil.h"
 #include <assert.h>
+#include "Windows.h"
 #if !defined(SLUGS_GRAPHICS_H)
 #error "Please include slugs_graphics.h before including this file"
 #endif
@@ -307,6 +308,15 @@ void pull_blend_desc(slg_blend_desc* blend_desc,FILE* fileptr){
     fseek(fileptr,0,SEEK_SET);
 }
 
+void pre_load_shaders(){
+
+    int num_shaders = shader_register_count;
+
+    for(int i =0;i<num_shaders;i++){
+        slg_shader shd = slg_make_shader(shader_registry[i].shader_desc);
+    }
+
+}
 Asset_t load_asset(char* asset_path,int path_size){
     Asset_t asset = {0};
     Object_t object = {0};
@@ -318,6 +328,15 @@ Asset_t load_asset(char* asset_path,int path_size){
     pull_member_filepath(&asset,"Gltf_File",fileptr);
     asset_transform transform = {0};
     pull_transform(&transform,fileptr);
+
+
+    slg_pipeline_desc pip_desc = {0};
+
+    pull_blend_desc(&pip_desc.blend_desc,fileptr);
+    pull_blend_desc(&pip_desc.rasterizer_desc,fileptr);
+    pull_depth_stencil(&pip_desc.depth_stencil_desc,fileptr);
+
+    object.pip = slg_make_pipeline(&pip_desc); 
     //pull_member_vector3(&object.position,"Position",fileptr);
     //pull_member_vector3(&object.rotation,"Rotation",fileptr);
     //pull_member_vector3(&object.scale,"Scale",fileptr);

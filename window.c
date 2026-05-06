@@ -22,13 +22,12 @@
 #include "modelData.h"
 #define ANIMATION_UTIL_IMPLEMENTATION
 #include "animationUtil.h"
-#define ASSET_MANAGER_IMPLEMENTATION
-#include "asset_manager.h"
-
 
 #include "offscreen_pass_hlsl.h"
 #include "ubershader_hlsl.h"
 #include "ubshader_debug_hlsl.h"
+#define ASSET_MANAGER_IMPLEMENTATION
+#include "asset_manager.h"
 
 #define APP_WIDTH 1920
 #define APP_HEIGHT 1080
@@ -225,9 +224,10 @@ void init(){
     slg_setup();
     slimgui_setup();
 
+    //I think we need to go and init all the shaders here and have a list of them?
     //DEMO CUBE RESOURCES
 
-    //load_asset("C:\\MaterialEditor\\fox.asset",MAX_PATH);
+    load_asset("C:\\MaterialEditor\\fox.asset",MAX_PATH);
     Vertex cubeVertices[] = {
        // Front face (-Z)  normal = 0, 0, -1
     { {-1,-1,-1}, { 0, 0,-1}, {0,1} },
