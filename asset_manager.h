@@ -5,11 +5,12 @@
 #include <string.h>
 #include "mathUtil.h"
 #include <assert.h>
+#include "arena.h"
 #include "Windows.h"
 #if !defined(SLUGS_GRAPHICS_H)
 #error "Please include slugs_graphics.h before including this file"
 #endif
-
+#include "Shader_Registry.h"
 
 typedef struct{
     char model_path[MAX_PATH];
@@ -26,11 +27,46 @@ typedef struct{
 typedef struct{
     GLTF_Data model_data;
 
+    //ANIMATION INFORMATION
+    //---------------------------------
+    AABB bounding_box;
+    Mat4* skin_matrix;
+    int num_skin_mat;
+    float animation_start;
+    float animation_transition_time;
+    float animation_current;
+    float current_animation_duration;
+
+    bool loaded_model;
+    bool is_starting_anim;
+    bool is_playing_anim;
+    bool is_ending_anim;
+    //--------------------------------
+
+    //RENDERING INFOMRATION
+    //--------------------------------
+    slg_buffer vertex_buffer;
+    slg_buffer index_buffer;
+    slg_buffer skin_buffer;
+    slg_buffer transform_buffer;
+    slg_texture albedo;
+    slg_render_texture normal;
     slg_pipeline pip;
+    //--------------------------------
+
+    //TRANSFORM INFORMATION
+    //--------------------------------
     Vector3 position;
     Vector3 rotation;
     Vector3 scale;
+    //--------------------------------
+    
+
 }Object_t;
+
+Arena asset_arena;
+
+
 #define ASSET_MANAGER_IMPLEMENTATION
 
 
@@ -126,7 +162,7 @@ float get_float_member(const char* field,FILE* fileptr){
 }
 
 
-void pull_member_filepath(Asset_t* asset,char* sub_string,FILE* fileptr){
+void pull_member_filepath(char* asset_buffer,char* sub_string,FILE* fileptr){
 
     char buffer[MAX_PATH];
     
@@ -138,12 +174,12 @@ void pull_member_filepath(Asset_t* asset,char* sub_string,FILE* fileptr){
             //char* curr_char = (sub_start + strlen(sub_string)) - buffer - 1;
             int path_index = 0;
             while(*sub_start != ';' && *sub_start != '\n' && *sub_start != '\0'){
-                asset->model_path[path_index] = *sub_start;
+                asset_buffer[path_index] = *sub_start;
                 sub_start++;
                 path_index++;
                 
             }
-            asset->model_path[path_index+1] = '\0';
+            asset_buffer[path_index+1] = '\0';
             
         }
 
@@ -308,16 +344,7 @@ void pull_blend_desc(slg_blend_desc* blend_desc,FILE* fileptr){
     fseek(fileptr,0,SEEK_SET);
 }
 
-void pre_load_shaders(){
-
-    int num_shaders = shader_register_count;
-
-    for(int i =0;i<num_shaders;i++){
-        slg_shader shd = slg_make_shader(shader_registry[i].shader_desc);
-    }
-
-}
-Asset_t load_asset(char* asset_path,int path_size){
+Object_t load_asset(char* asset_path,int path_size){
     Asset_t asset = {0};
     Object_t object = {0};
     FILE* fileptr = fopen(asset_path,"r");
@@ -325,18 +352,89 @@ Asset_t load_asset(char* asset_path,int path_size){
         printf("Couldn't open asset file");
     }
 
-    pull_member_filepath(&asset,"Gltf_File",fileptr);
+    pull_member_filepath(asset.model_path,"Gltf_File",fileptr);
+    pull_member_filepath(asset.shader_path,"Shader",fileptr);
     asset_transform transform = {0};
     pull_transform(&transform,fileptr);
 
 
     slg_pipeline_desc pip_desc = {0};
 
-    pull_blend_desc(&pip_desc.blend_desc,fileptr);
-    pull_blend_desc(&pip_desc.rasterizer_desc,fileptr);
-    pull_depth_stencil(&pip_desc.depth_stencil_desc,fileptr);
+    //I FORGOT THAT I AM NO LONGER STORING PIPELINE INFORMATION INSIDE THE ASSET FILE
 
-    object.pip = slg_make_pipeline(&pip_desc); 
+    //pull_blend_desc(&pip_desc.blend_desc,fileptr);
+    //pull_blend_desc(&pip_desc.rasterizer_desc,fileptr);
+    //pull_depth_stencil(&pip_desc.depth_stencil_desc,fileptr);
+
+    pip_desc.depth_stencil_desc.depth_enable = true;
+    pip_desc.depth_stencil_desc.write_mask = SLG_DEPTH_WRITE_MASK_ALL;
+    pip_desc.depth_stencil_desc.compare_func = SLG_COMPARISON_FUNC_LESS;
+    pip_desc.rasterizer_desc.cull_mode = SLG_FACEWINDING_CLOCKWISE;
+
+    pip_desc.shader = get_shader_from_registry(asset.shader_path);
+    object.pip = slg_make_pipeline(&pip_desc);
+    object.model_data = getDataFromGltf(asset.model_path,MAX_PATH); 
+    
+    object.bounding_box = calcAABBFromVertexBuffer(object.model_data.model_buffers.combinedVertBuffer,object.model_data.model_buffers.vbuffer_size);
+
+    object.vertex_buffer = slg_make_buffer(&(slg_buffer_desc){
+        .buffer = object.model_data.model_buffers.combinedVertBuffer,
+        .buffer_size = sizeof(Vertex_t) * object.model_data.model_buffers.vbuffer_size,
+        .buffer_stride = sizeof(Vertex_t),
+        .usage = SLG_BUFFER_USAGE_CONSTANT_BUFFER
+    });
+
+    object.index_buffer = slg_make_buffer(&(slg_buffer_desc){
+        .buffer = object.model_data.model_buffers.combinedIndexBuffer,
+        .buffer_size = sizeof(uint16_t) * object.model_data.model_buffers.ibuffer_size,
+        .buffer_stride = sizeof(uint16_t),
+        .usage = SLG_BUFFER_USAGE_CONSTANT_BUFFER
+    });
+
+    if(object.model_data.model.numberOfAnimations > 0){
+        //flags.has_skinning = 1;
+        object.skin_matrix = arena_alloc(&gltf_load_arena,object.model_data.model.numberOfNodes * sizeof(Mat4)); 
+        object.num_skin_mat = object.model_data.model.numberOfNodes;
+        Anim_recalculateLocalTransformMatrix(object.model_data.model.nodes,object.model_data.model.numberOfNodes);
+        Anim_recalculateSkinningMatrix(object.model_data.model.nodes,object.model_data.model.numberOfNodes,object.skin_matrix);
+        for(int i = 0;i<object.num_skin_mat;i++){
+            printf("[%0.02f],[%0.02f],[%0.02f],[%0.02f]\n",object.skin_matrix[i].Elements[0][0],
+            object.skin_matrix[i].Elements[1][0],
+            object.skin_matrix[i].Elements[2][0],
+            object.skin_matrix[i].Elements[3][0]);
+            printf("[%0.02f],[%0.02f],[%0.02f],[%0.02f]\n",object.skin_matrix[i].Elements[0][1],
+            object.skin_matrix[i].Elements[1][1],
+            object.skin_matrix[i].Elements[2][1],
+            object.skin_matrix[i].Elements[3][1]);
+            printf("[%0.02f],[%0.02f],[%0.02f],[%0.02f]\n",object.skin_matrix[i].Elements[0][2],
+            object.skin_matrix[i].Elements[1][2],
+            object.skin_matrix[i].Elements[2][2],
+            object.skin_matrix[i].Elements[3][2]);
+            printf("[%0.02f],[%0.02f],[%0.02f],[%0.02f]\n",object.skin_matrix[i].Elements[0][3],
+            object.skin_matrix[i].Elements[1][3],
+            object.skin_matrix[i].Elements[2][3],
+            object.skin_matrix[i].Elements[3][3]);
+            printf("-------------------------------\n");
+        }
+        printf("size: %d",object.model_data.model.numberOfNodes * sizeof(Mat4));
+        object.skin_buffer = slg_make_buffer(&(slg_buffer_desc){
+            .buffer = (void*)object.skin_matrix,
+            .buffer_size = object.model_data.model.numberOfNodes * sizeof(Mat4),
+            .buffer_stride = sizeof(Mat4),
+            .usage = SLG_BUFFER_USAGE_STRUCTURED_BUFFER
+        });
+    }
+    else{
+        object.skin_matrix = arena_alloc(&gltf_load_arena,sizeof(Mat4));
+        object.skin_matrix[0] = identityMat4();
+        object.num_skin_mat = 1;
+        object.skin_buffer = slg_make_buffer(&(slg_buffer_desc){
+            .buffer = (void*)object.skin_matrix,
+            .buffer_size = sizeof(Mat4),
+            .buffer_stride = sizeof(Mat4),
+            .usage = SLG_BUFFER_USAGE_STRUCTURED_BUFFER
+        }); 
+    }
     //pull_member_vector3(&object.position,"Position",fileptr);
     //pull_member_vector3(&object.rotation,"Rotation",fileptr);
     //pull_member_vector3(&object.scale,"Scale",fileptr);
@@ -358,7 +456,7 @@ Asset_t load_asset(char* asset_path,int path_size){
 
     //I think the shader loading makes this kinda hard to do 
     //Since all the shader pipeline and binding information is runtime information
-    return asset;
+    return object;
 }
 
 

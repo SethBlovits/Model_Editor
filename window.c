@@ -26,8 +26,11 @@
 #include "offscreen_pass_hlsl.h"
 #include "ubershader_hlsl.h"
 #include "ubshader_debug_hlsl.h"
+#define SHADER_REGISTRY_IMPLEMENTATION
+#include "Shader_Registry.h"
 #define ASSET_MANAGER_IMPLEMENTATION
 #include "asset_manager.h"
+
 
 #define APP_WIDTH 1920
 #define APP_HEIGHT 1080
@@ -223,7 +226,8 @@ void init(){
     slg_d3d12_state.appdata.hwnd = app_get_window_handle();
     slg_setup();
     slimgui_setup();
-
+    
+    init_shader_registry();
     //I think we need to go and init all the shaders here and have a list of them?
     //DEMO CUBE RESOURCES
 

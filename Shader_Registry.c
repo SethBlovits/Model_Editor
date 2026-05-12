@@ -16,5 +16,3 @@ void init_shader_registry(){
 	shader_registry[2] = (shader_registry_entry){"ubershader_hlsl.h",UBERSHADER_SHADER_DESC};
 	shader_registry[3] = (shader_registry_entry){"ubshader_debug_hlsl.h",UBSHADER_DEBUG_SHADER_DESC};
 };
-
-void get_shader_from_registry();

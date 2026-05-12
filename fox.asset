@@ -6,7 +6,6 @@ Asset: fox
     Gltf_File:test_gltf/Fox.gltf;
     Albedo:test_gltf\Texture.png;
     Shader:ubershader.hlsl;
-    Shader_Helper:ubershader_hlsl.h;
     
     #Material:
     Diffuse:(1,1,1,1);
