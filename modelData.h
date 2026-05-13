@@ -7,7 +7,10 @@
 #include <stdbool.h>
 #include "mathUtil.h"
 #include <string.h>
-#include "arena.h"
+#ifndef MEMUTIL_IMPLEMENTATION
+#define MEMUTIL_IMPLEMENTATION
+#endif
+#include "mem_util.h"
 #define CGLTF_IMPLEMENTATION
 #include "cgltf.h"
 

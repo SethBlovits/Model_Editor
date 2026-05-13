@@ -2,6 +2,8 @@
 #include <windows.h>
 #include <stdbool.h>
 
+#define MEMUTIL_IMPLEMENTATION
+#include "mem_util.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION

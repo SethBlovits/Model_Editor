@@ -5,7 +5,10 @@
 #include <string.h>
 #include "mathUtil.h"
 #include <assert.h>
-#include "arena.h"
+#ifndef MEMUTIL_IMPLEMENTATION
+#define MEMUTIL_IMPLEMENTAION
+#endif
+#include "mem_util.h"
 #include "Windows.h"
 #if !defined(SLUGS_GRAPHICS_H)
 #error "Please include slugs_graphics.h before including this file"
@@ -344,6 +347,9 @@ void pull_blend_desc(slg_blend_desc* blend_desc,FILE* fileptr){
     fseek(fileptr,0,SEEK_SET);
 }
 
+//Can i maybe pass an allocator into this function instead???
+//The problem is that I may need to pass the arena or pool with it to make it work. The main problem is that I don't
+//want to have to init arena for asset loading in here
 Object_t load_asset(char* asset_path,int path_size){
     Asset_t asset = {0};
     Object_t object = {0};

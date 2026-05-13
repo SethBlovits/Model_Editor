@@ -16,9 +16,9 @@
 #define SLG_ASSERT assert
 #endif
 
-#include "pool.h"
-#include "arena.h"
-
+//#include "pool.h"
+//#include "arena.h"
+#include "mem_util.h"
 
 #include <d3d12.h>
 #include <dxgi1_6.h>

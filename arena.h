@@ -23,7 +23,6 @@ typedef struct{
 //return a pointer to the memory arena??
 
 
-
 void *arena_alloc_align(Arena *arena, size_t data_size, size_t align){
     //when allocation we use the current location of the pointer
     //arena->buffer returns the address of the arena and then we can index into it by using the offset
