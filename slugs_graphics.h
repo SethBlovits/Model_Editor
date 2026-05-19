@@ -816,7 +816,8 @@ void slg_cleanup(void);
 #endif
 
 #ifdef SLUGS_IMPLEMENTATION
-
+#ifndef SLUGS_IMPLEMENTATION_DEFINED
+#define SLUGS_IMPLEMENTATION_DEFINED
 
 
 //=========================================================================================//
@@ -3745,8 +3746,6 @@ void slg_cleanup(){
 
 
 
-
-
-
+#endif
 
 #endif

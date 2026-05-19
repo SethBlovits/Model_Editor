@@ -34,6 +34,7 @@
 #include "asset_manager.h"
 
 
+
 #define APP_WIDTH 1920
 #define APP_HEIGHT 1080
 
@@ -485,7 +486,7 @@ void load_gltf(char* path, int path_size){
     //load gltf arena
     SetCurrentDirectory("C:\\MaterialEditor\\test_gltf");
     //this function pulls model data from a gltf file it can get the buffers and the all the rest of the data
-    GLTF_Data gltf_model = getDataFromGltf(path, path_size);
+    GLTF_Data gltf_model = getDataFromGltf(path);//Is should make it so you can pass an allocator into this function
     object_data.gltf_data = gltf_model;
     AABB model_bounds = calcAABBFromVertexBuffer(gltf_model.model_buffers.combinedVertBuffer,gltf_model.model_buffers.vbuffer_size);
     object_data.bounding_box = model_bounds;

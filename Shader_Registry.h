@@ -1,8 +1,9 @@
 #ifndef SHADER_REGISTRY_H
 #define SHADER_REGISTRY_H
 
-
-#include "slugs_graphics.h"
+#if !defined(SLUGS_GRAPHICS_H)
+#error "Please include slugs_graphics.h before including this file"
+#endif
 #include "imgui_hlsl.h"
 #include "offscreen_pass_hlsl.h"
 #include "ubershader_hlsl.h"

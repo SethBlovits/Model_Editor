@@ -22,7 +22,6 @@
 #endif
 
 typedef void* (*AllocFunc)(void* allocator,size_t size);
-
 typedef struct{
 
     void* allocator; // this is whatever container/allocator you want. (Arena,Pool,etc)
@@ -30,6 +29,10 @@ typedef struct{
 
 }Allocator_t;
 
+Allocator_t default_allocator = {
+    .allocator = NULL,
+    .func = (AllocFunc)malloc
+};
 typedef struct{
     uint8_t *buffer; //holds on to bytes --> uint8_t = a byte
     size_t buffer_length;  //how long the buffer is
@@ -51,21 +54,30 @@ typedef struct{
     Free_Node* head;
 }Pool;
 
+//This function will just be used for a default scenario
+void* default_AllocFunc(void* allocator,size_t size);
+void* arena_AllocFunc(void* allocator,size_t size);
+void* pool_AllocFunc(void* allocator,size_t size);
 
-void *arena_alloc_align(Arena *arena, size_t data_size, size_t align);
 void *arena_alloc(Arena *arena, size_t size);
+void *arena_alloc_align(Arena *arena, size_t data_size, size_t align);
 void arena_init(Arena *arena, void* backing_buffer, size_t backing_buffer_length);
 void arena_free_all(Arena* arena);
 
+//The pool alloc does not fit the template. Not sure what to do here.
+void* pool_alloc(Pool *pool);
 void pool_free_all(Pool *pool);
 void pool_init(Pool *pool, void *backing_buffer, size_t backing_buffer_length, size_t chunk_size, size_t chunk_alignment);
-void* pool_alloc(Pool *pool);
 void pool_free(Pool *pool, void *ptr);
 bool pool_is_chunk_allocated(Pool *pool, void* chunk);
 
 
 //ARENA IMPLEMENTATION
 #ifdef MEMUTIL_IMPLEMENTATION
+void* default_malloc(void* allocator,size_t size){
+    (void)allocator;
+    return malloc(size);
+}
 void *arena_alloc_align(Arena *arena, size_t data_size, size_t align){
     //when allocation we use the current location of the pointer
     //arena->buffer returns the address of the arena and then we can index into it by using the offset

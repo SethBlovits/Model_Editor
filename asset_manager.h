@@ -5,9 +5,6 @@
 #include <string.h>
 #include "mathUtil.h"
 #include <assert.h>
-#ifndef MEMUTIL_IMPLEMENTATION
-#define MEMUTIL_IMPLEMENTAION
-#endif
 #include "mem_util.h"
 #include "Windows.h"
 #if !defined(SLUGS_GRAPHICS_H)
@@ -66,9 +63,6 @@ typedef struct{
     
 
 }Object_t;
-
-Arena asset_arena;
-
 
 #define ASSET_MANAGER_IMPLEMENTATION
 
@@ -262,9 +256,9 @@ void pull_depth_stencil(slg_depth_stencil_desc* depth_desc,FILE* fileptr){
     char buffer[MAX_PATH];
     long section_start = ftell(fileptr);
 
-    char* field_char = NULL;
-    char field_value[MAX_PATH];
-    int field_value_index = 0;
+    //char* field_char = NULL;
+    //char field_value[MAX_PATH];
+    //int field_value_index = 0;
 
     while(fgets(buffer,MAX_PATH,fileptr)){
         if(strstr(buffer,"# Depth Stencil")){
@@ -286,9 +280,9 @@ void pull_rasterizer_desc(slg_rasterizer_desc* rasterizer_desc,FILE* fileptr){
     char buffer[MAX_PATH];
     long section_start = ftell(fileptr);
 
-    char* field_char = NULL;
-    char field_value[MAX_PATH];
-    int field_value_index = 0;
+    //char* field_char = NULL;
+    //char field_value[MAX_PATH];
+    //int field_value_index = 0;
 
     while(fgets(buffer,MAX_PATH,fileptr)){
         if(strstr(buffer,"# Rasterizer")){
@@ -316,9 +310,9 @@ void pull_blend_desc(slg_blend_desc* blend_desc,FILE* fileptr){
     char buffer[MAX_PATH];
     long section_start = ftell(fileptr);
 
-    char* field_char = NULL;
-    char field_value[MAX_PATH];
-    int field_value_index = 0;
+    //char* field_char = NULL;
+    //char field_value[MAX_PATH];
+    //int field_value_index = 0;
 
     while(fgets(buffer,MAX_PATH,fileptr)){
         if(strstr(buffer,"# Rasterizer")){
@@ -347,10 +341,20 @@ void pull_blend_desc(slg_blend_desc* blend_desc,FILE* fileptr){
     fseek(fileptr,0,SEEK_SET);
 }
 
-//Can i maybe pass an allocator into this function instead???
-//The problem is that I may need to pass the arena or pool with it to make it work. The main problem is that I don't
-//want to have to init arena for asset loading in here
-Object_t load_asset(char* asset_path,int path_size){
+//I can now pass an allocator into this function from the outside. The will let the user(me) initialize any resources outside
+// of the header, probably in some sort of mainline init function and then use it. If the user passes null in, then the resource
+//will just be mallocd
+Object_t load_asset(char* asset_path,Allocator_t* alloc){
+
+    
+    Allocator_t* asset_allocator;
+    if(alloc == NULL){
+        asset_allocator = &default_allocator;
+    }
+    else{
+        asset_allocator = alloc;
+    }
+
     Asset_t asset = {0};
     Object_t object = {0};
     FILE* fileptr = fopen(asset_path,"r");
@@ -379,7 +383,7 @@ Object_t load_asset(char* asset_path,int path_size){
 
     pip_desc.shader = get_shader_from_registry(asset.shader_path);
     object.pip = slg_make_pipeline(&pip_desc);
-    object.model_data = getDataFromGltf(asset.model_path,MAX_PATH); 
+    object.model_data = getDataFromGltf(asset.model_path); 
     
     object.bounding_box = calcAABBFromVertexBuffer(object.model_data.model_buffers.combinedVertBuffer,object.model_data.model_buffers.vbuffer_size);
 
@@ -399,7 +403,8 @@ Object_t load_asset(char* asset_path,int path_size){
 
     if(object.model_data.model.numberOfAnimations > 0){
         //flags.has_skinning = 1;
-        object.skin_matrix = arena_alloc(&gltf_load_arena,object.model_data.model.numberOfNodes * sizeof(Mat4)); 
+        object.skin_matrix = asset_allocator->func(asset_allocator->allocator,object.model_data.model.numberOfNodes * sizeof(Mat4)); 
+        //arena_alloc(&gltf_load_arena,object.model_data.model.numberOfNodes * sizeof(Mat4)); 
         object.num_skin_mat = object.model_data.model.numberOfNodes;
         Anim_recalculateLocalTransformMatrix(object.model_data.model.nodes,object.model_data.model.numberOfNodes);
         Anim_recalculateSkinningMatrix(object.model_data.model.nodes,object.model_data.model.numberOfNodes,object.skin_matrix);
@@ -422,7 +427,7 @@ Object_t load_asset(char* asset_path,int path_size){
             object.skin_matrix[i].Elements[3][3]);
             printf("-------------------------------\n");
         }
-        printf("size: %d",object.model_data.model.numberOfNodes * sizeof(Mat4));
+        printf("size: %zd",object.model_data.model.numberOfNodes * sizeof(Mat4));
         object.skin_buffer = slg_make_buffer(&(slg_buffer_desc){
             .buffer = (void*)object.skin_matrix,
             .buffer_size = object.model_data.model.numberOfNodes * sizeof(Mat4),
@@ -431,7 +436,8 @@ Object_t load_asset(char* asset_path,int path_size){
         });
     }
     else{
-        object.skin_matrix = arena_alloc(&gltf_load_arena,sizeof(Mat4));
+        object.skin_matrix = asset_allocator->func(NULL,sizeof(Mat4));
+        //arena_alloc(&gltf_load_arena,sizeof(Mat4));
         object.skin_matrix[0] = identityMat4();
         object.num_skin_mat = 1;
         object.skin_buffer = slg_make_buffer(&(slg_buffer_desc){

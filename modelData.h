@@ -223,8 +223,8 @@ void nodesDeepCopy(Node_t *src,int srcCount,Node_t *dst,Arena *arena){
         
         strcpy(dst[i].name,src[i].name);
         //memcpy(dst[i].name,src[i].name,100);
-        Node_t srcNode = src[i];
-        Node_t dstNode = dst[i];
+        //Node_t srcNode = src[i];
+        //Node_t dstNode = dst[i];
         dst[i].meshes = src[i].meshes;
         dst[i].numberOfMeshes = src[i].numberOfMeshes;
     }
@@ -268,42 +268,30 @@ void fillNormalBuffer(Primitive_t *prim,Vector3 *buffer, int size){
         prim->struct_vertex_buffer[i].normal = buffer[i];
     }
 }
-void fillIndexBuffer(Primitive_t *prim,int *buffer,int size){
+void fillIndexBuffer(Primitive_t *prim,unsigned int *buffer,size_t size){
     //prim->index_buffer = malloc(size*sizeof(uint16_t));
     //assert(prim->index_buffer != NULL && "Error allocating index_buffer");
     prim->index_buffer = arena_alloc(&modelArena,size*sizeof(uint16_t));
     prim->index_buffer_size = size;
     for(int i=0;i<size;i++){
-        prim->index_buffer[i] = buffer[i];
+        prim->index_buffer[i] = (uint16_t)buffer[i];
     }
 }
-void calculateNormalsFromVertex(Vertex_t *buffer,int numVerts){
+void calculateNormalsFromVertex(Vertex_t *buffer,size_t numVerts){
     for(int i=0;i<numVerts;i+=3){ //pulling out 3 float per vert for 3 verts
         Vector3 A = buffer[i].position;
         Vector3 B = buffer[i+1].position;
         Vector3 C = buffer[i+2].position;
 
-        //normals for A
-        //n := normalize(cross(B-A, C-A))
+        
         Vector3 normA = normalizeVec3(crossVec3(subtractVec3(B,A),subtractVec3(C,A)));
-        //Vector3 normB = normalizeVec3(crossVec3(subtractVec3(C,B),subtractVec3(A,B)));
-        //Vector3 normC = normalizeVec3(crossVec3(subtractVec3(B,C),subtractVec3(A,C)));
+        
         buffer[i].normal = normA;
         
         buffer[i+1].normal = normA;
 
         buffer[i+2].normal = normA;
-        
-        /*
-        out_normals[i+3] = normB.x;
-        out_normals[i+4] = normB.y;
-        out_normals[i+5] = normB.z;
-
-        out_normals[i+6] = normC.x;
-        out_normals[i+7] = normC.y;
-        out_normals[i+8] = normC.z;
-        */
-        
+   
     }
 }
 /*void createCombinedBuffer(Primitive_t *prim){
@@ -337,7 +325,7 @@ void parsePrimitives(cgltf_primitive *primitives,int numPrimitives,Mesh_t *mesh,
             cgltf_attribute attribute = attributes[t];
             if(attributes[t].type == cgltf_attribute_type_position){
                 cgltf_accessor *attributeAccessor = attribute.data;
-                int accessorSize = attributeAccessor->count;
+                size_t accessorSize = attributeAccessor->count;
                 //MULT ACCESSOR SIZE BY 3 BECAUSE VEC3
                 //cgltf_float *positionFloat = malloc((accessorSize*3)*sizeof(float));
                 //assert(positionFloat!=NULL && "error malloc position float");
@@ -366,7 +354,7 @@ void parsePrimitives(cgltf_primitive *primitives,int numPrimitives,Mesh_t *mesh,
             else if(attributes[t].type == cgltf_attribute_type_normal){
                 hasNormals = true;
                 cgltf_accessor *attributeAccessor = attribute.data;
-                int accessorSize = attributeAccessor->count;
+                size_t accessorSize = attributeAccessor->count;
                 //MULT ACCESSOR SIZE BY 3 BECAUSE VEC3
                 //cgltf_float *normalFloat = malloc((accessorSize*3)*sizeof(float));
                 //assert(normalFloat!=NULL && "error malloc position float");
@@ -394,7 +382,7 @@ void parsePrimitives(cgltf_primitive *primitives,int numPrimitives,Mesh_t *mesh,
             }
             else if(attributes[t].type == cgltf_attribute_type_texcoord){
                 cgltf_accessor *attributeAccessor = attribute.data;
-                int accessorSize = attributeAccessor->count;
+                size_t accessorSize = attributeAccessor->count;
                 cgltf_float *uvFloat = arena_alloc(&modelArena,(accessorSize*2)*sizeof(float));
                 Vector2 *uvVec = arena_alloc(&modelArena,(accessorSize)*sizeof(Vector2));
                 cgltf_size size = cgltf_accessor_unpack_floats(attributeAccessor,uvFloat,(accessorSize*2));
@@ -417,7 +405,7 @@ void parsePrimitives(cgltf_primitive *primitives,int numPrimitives,Mesh_t *mesh,
             }
             else if(attributes[t].type == cgltf_attribute_type_weights){
                 cgltf_accessor *attributeAccessor = attribute.data;
-                int accessorSize = attributeAccessor->count;
+                size_t accessorSize = attributeAccessor->count;
                 cgltf_float *weightFloat = arena_alloc(&modelArena,(accessorSize*4)*sizeof(float));
                 Vector4 *weightVectors = arena_alloc(&modelArena,accessorSize*sizeof(Vector4));
                 cgltf_size size = cgltf_accessor_unpack_floats(attributeAccessor,weightFloat,accessorSize*4);
@@ -444,7 +432,7 @@ void parsePrimitives(cgltf_primitive *primitives,int numPrimitives,Mesh_t *mesh,
             }
             else if(attributes[t].type == cgltf_attribute_type_joints){
                 cgltf_accessor *attributeAccessor = attribute.data;
-                int accessorSize = attributeAccessor->count;
+                size_t accessorSize = attributeAccessor->count;
         
                 //cgltf_size required_uints = cgltf_accessor_read_uint(attributeAccessor, 0, NULL, 0);
                 //cgltf_size required_uints = cgltf_accessor_read_uint(attributeAccessor, 0, NULL, sizeof(cgltf_uint));
@@ -489,25 +477,25 @@ void parsePrimitives(cgltf_primitive *primitives,int numPrimitives,Mesh_t *mesh,
                 for(int p=0;p<accessorSize;p++){
                     Vector4 jointFinalVec;
                     jointFinalVec = jointVectors[p];
-                    if(jointVectors[p].x!=0){
+                    if(jointVectors[p].x!=0.0f){
                         cgltf_node *tempNode = skin->joints[(int)jointVectors[p].x];
-                        int nodeIndex = cgltf_node_index(data,tempNode);
-                        jointFinalVec.x = nodeIndex;
+                        size_t nodeIndex = cgltf_node_index(data,tempNode);
+                        jointFinalVec.x = (float)nodeIndex;
                     }
-                    if(jointVectors[p].y!=0){
+                    if(jointVectors[p].y!=0.0f){
                         cgltf_node *tempNode = skin->joints[(int)jointVectors[p].y];
-                        int nodeIndex = cgltf_node_index(data,tempNode);
-                        jointFinalVec.y = nodeIndex;
+                        size_t nodeIndex = cgltf_node_index(data,tempNode);
+                        jointFinalVec.y = (float)nodeIndex;
                     }
-                    if(jointVectors[p].z!=0){
+                    if(jointVectors[p].z!=0.0f){
                         cgltf_node *tempNode = skin->joints[(int)jointVectors[p].z];
-                        int nodeIndex = cgltf_node_index(data,tempNode);
-                        jointFinalVec.z = nodeIndex;
+                        size_t nodeIndex = cgltf_node_index(data,tempNode);
+                        jointFinalVec.z = (float)nodeIndex;
                     }
-                    if(jointVectors[p].w!=0){
+                    if(jointVectors[p].w!=0.0f){
                         cgltf_node *tempNode = skin->joints[(int)jointVectors[p].w];
-                        int nodeIndex = cgltf_node_index(data,tempNode);
-                        jointFinalVec.w = nodeIndex;
+                        size_t nodeIndex = cgltf_node_index(data,tempNode);
+                        jointFinalVec.w = (float)nodeIndex;
                     }
                     //in nodeIndex = skin->joints[joint]
     
@@ -521,24 +509,30 @@ void parsePrimitives(cgltf_primitive *primitives,int numPrimitives,Mesh_t *mesh,
             //assert(indexBuffer != NULL && "malloc failed");
             cgltf_uint *indexBuffer = arena_alloc(&modelArena,primitive.indices->count*sizeof(cgltf_uint));
 
-            int numIndices = cgltf_accessor_unpack_indices(primitive.indices,indexBuffer,sizeof(cgltf_uint),primitive.indices->count);
+            size_t numIndices = cgltf_accessor_unpack_indices(primitive.indices,indexBuffer,sizeof(cgltf_uint),primitive.indices->count);
             fillIndexBuffer(&mesh->primitives[i],indexBuffer,numIndices);
             //free(indexBuffer);
         }
         else{
-            int numIndices = mesh->primitives[i].buffer_size;
+            size_t numIndices = mesh->primitives[i].buffer_size;
             //cgltf_uint *indexBuffer = malloc(numIndices*sizeof(cgltf_uint));
             //assert(indexBuffer != NULL && "malloc failed");
             cgltf_uint *indexBuffer = arena_alloc(&modelArena,numIndices*sizeof(cgltf_uint));
+            for(int j =0;j<numIndices;j++){
+                indexBuffer[j]=j;
+            }
+            /*
             for(int i =0;i<numIndices;i++){
                 indexBuffer[i]=i;
-            }
+            }*/
+
+
             fillIndexBuffer(&mesh->primitives[i],indexBuffer,numIndices);
             //free(indexBuffer);
         }
         if(hasNormals == false){
             //int size = mesh->primitives[i].vertex_buffer_size;
-            int size = mesh->primitives[i].buffer_size;
+            size_t size = mesh->primitives[i].buffer_size;
             //mesh->primitives[i].normal_buffer = malloc(size*sizeof(float));
             if(mesh->primitives[i].struct_vertex_buffer == NULL){
                 mesh->primitives[i].struct_vertex_buffer = arena_alloc(&modelArena,size*sizeof(Vertex_t));
@@ -556,23 +550,23 @@ void parseMesh(cgltf_mesh *c_mesh,Node_t *node,cgltf_skin *skin,cgltf_data *data
     node->meshes = arena_alloc(&modelArena,sizeof(Mesh_t));
     //node->meshes = malloc(1*sizeof(Mesh_t));
     //assert(node->meshes != NULL && "issue mallocing");
-    int numberOfPrimitives = c_mesh->primitives_count;
+    size_t numberOfPrimitives = c_mesh->primitives_count;
     
     cgltf_primitive *primitives = c_mesh->primitives;
     
     for(int i =0;i<node->numberOfMeshes;i++){
-        node->meshes[i].numberOfPrimitives = numberOfPrimitives;
+        node->meshes[i].numberOfPrimitives = (int)numberOfPrimitives;
         //node->meshes[i].primitives = malloc(numberOfPrimitives * sizeof(Primitive_t));
         //assert(node->meshes[i].primitives != NULL && "mesh.primitives allocation failed");
         node->meshes[i].primitives = arena_alloc(&modelArena,numberOfPrimitives * sizeof(Primitive_t));
-        parsePrimitives(primitives,numberOfPrimitives,&node->meshes[i],skin,data);
+        parsePrimitives(primitives,(int)numberOfPrimitives,&node->meshes[i],skin,data);
     }
 }
 void parseNodes(cgltf_node *nodes,cgltf_data *data,Model_t *model){
-    int numberOfNodes = data->nodes_count;
+    size_t numberOfNodes = data->nodes_count;
     //allocate the space for the nodes inside of the model
     int nodeIndex=0;
-    model->numberOfNodes = numberOfNodes;
+    model->numberOfNodes = (int)numberOfNodes;
     model->nodes = arena_alloc(&modelArena,sizeof(Node_t)*numberOfNodes);
     //model->nodes = malloc(numberOfNodes * sizeof(Node_t));
     //assert(model->nodes != NULL && "model nodes failed to allocate");
@@ -609,8 +603,8 @@ void parseNodes(cgltf_node *nodes,cgltf_data *data,Model_t *model){
             model->nodes[nodeIndex].parentIndex = (int)(c_node->parent - nodes);
         }
         
-        int numberOfChildren = c_node->children_count;
-        model->nodes[nodeIndex].numChildren = numberOfChildren;
+        size_t numberOfChildren = c_node->children_count;
+        model->nodes[nodeIndex].numChildren = (int)numberOfChildren;
         if(numberOfChildren>0){
             int parentIndex = nodeIndex;
             //model->nodes[i].children = malloc(numberOfChildren*sizeof(Node_t));
@@ -627,7 +621,7 @@ void parseNodes(cgltf_node *nodes,cgltf_data *data,Model_t *model){
                 }
                 cgltf_node_transform_local(child_node,model->nodes[nodeIndex].transformMatrix.Elements_16);
                 cgltf_node_transform_world(child_node,model->nodes[nodeIndex].worldTransformMatrix.Elements_16);
-                bool hasTranslation = child_node->has_translation;
+                
                 memcpy(model->nodes[nodeIndex].translation.Elements,child_node->translation,3*sizeof(float));
                 memcpy(model->nodes[nodeIndex].scale.Elements,child_node->scale,3*sizeof(float));
                 memcpy(model->nodes[nodeIndex].rotation.Elements,child_node->rotation,4*sizeof(float));
@@ -648,11 +642,11 @@ void parseNodes(cgltf_node *nodes,cgltf_data *data,Model_t *model){
 
             }
         }
-        Node_t testNode = model->nodes[i];
+        //Node_t testNode = model->nodes[i];
         //printf("break");
     }
 }
-Vector4 interpolateAnim(int interpolateEnum,float currentTime,float previousTime,float nextTime,Vector4 previousTransform,Vector4 nextTransform){
+/*Vector4 interpolateAnim(int interpolateEnum,float currentTime,float previousTime,float nextTime,Vector4 previousTransform,Vector4 nextTransform){
     switch (interpolateEnum){
         case cgltf_interpolation_type_linear:
             break;
@@ -662,7 +656,7 @@ Vector4 interpolateAnim(int interpolateEnum,float currentTime,float previousTime
             break;
     }
     return (Vector4){0,0,0,0};
-}
+}*/
 void parseAnimations(cgltf_animation *animations,int animationCount,cgltf_data *data,Model_t *model){
     model->animations = arena_alloc(&modelArena,animationCount*sizeof(Animation_t));
     
@@ -674,7 +668,7 @@ void parseAnimations(cgltf_animation *animations,int animationCount,cgltf_data *
         //char* test = animations[i].name;
         //model->animations[i].name = animations[i].name;
         strcpy(model->animations[i].name,animations[i].name);
-        int numChannels = animations[i].channels_count;
+        int numChannels = (int)animations[i].channels_count;
         model->animations[i].channels = arena_alloc(&modelArena,numChannels*sizeof(Channel_t));
         model->animations[i].numChannels = numChannels;
         
@@ -682,7 +676,7 @@ void parseAnimations(cgltf_animation *animations,int animationCount,cgltf_data *
         for(int c = 0;c<numChannels;c++){
             cgltf_animation_channel channel = animations[i].channels[c];
             cgltf_node *node = channel.target_node;
-            int nodeIndex = cgltf_node_index(data,node);
+            int nodeIndex = (int)cgltf_node_index(data,node);
             model->animations[i].channels[c].nodeIndex = nodeIndex;
             
             //model->animations[i].channels[c].numSamplers
@@ -703,16 +697,16 @@ void parseAnimations(cgltf_animation *animations,int animationCount,cgltf_data *
                     animationMax = *input->max;
                 }
             }
-            int numberOfInputs = input->count;
+            int numberOfInputs = (int)input->count;
             model->animations[i].channels[c].sampler.sampler_time = arena_alloc(&modelArena,numberOfInputs*sizeof(float));
             model->animations[i].channels[c].sampler.num_sampler_time = numberOfInputs;
             //float *inputFloats = arena_alloc(&modelArena,numberOfInputs*sizeof(float));
             cgltf_accessor_unpack_floats(input,model->animations[i].channels[c].sampler.sampler_time,numberOfInputs);
 
             cgltf_accessor *output = sampler->output;
-            int numberOfOutputs = output->count;
+            int numberOfOutputs = (int)output->count;
             float *outputFloats;
-            int size = 0;
+            size_t size = 0; 
             model->animations[i].channels[c].transform_type = channel.target_path;
             switch(channel.target_path){
                 case cgltf_animation_path_type_translation:
@@ -764,13 +758,13 @@ void parseAnimations(cgltf_animation *animations,int animationCount,cgltf_data *
 void parseSkins(cgltf_skin *skins, int skinCount,Model_t *model){
     for(int i=0;i<skinCount;i++){
         cgltf_accessor *bind_matrix = skins[i].inverse_bind_matrices;
-        int accessorSize = bind_matrix->count;
+        size_t accessorSize = bind_matrix->count;
         cgltf_float *bindMatrixFloats = arena_alloc(&modelArena,accessorSize*sizeof(float)*16);
         Mat4 *bindMatrices = arena_alloc(&modelArena,accessorSize*sizeof(Mat4));
-        int size = cgltf_accessor_unpack_floats(bind_matrix,bindMatrixFloats,accessorSize*16);
+        size_t size = cgltf_accessor_unpack_floats(bind_matrix,bindMatrixFloats,accessorSize*16);
         memcpy(bindMatrices,bindMatrixFloats,size*sizeof(float));
 
-        int jointCount = skins[i].joints_count;
+        int jointCount = (int)skins[i].joints_count;
         cgltf_node **joints = skins[i].joints;
         for(int m=0;m<model->numberOfNodes;m++){
            
@@ -856,10 +850,10 @@ void parseMaterials(cgltf_material *materials, int numMaterials,Model_t *model){
 //WE GOT AN ISSUE WITH MEMORY ALLOCATION!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 // i dont think we have a memory allocation issue anymore but i can investigate if it's still a problem
 //instead of passing in an index to the file in an already created list we can just pass in the path because that's how i will be using this now
-GLTF_Data getDataFromGltf(char *path, int path_size){
+GLTF_Data getDataFromGltf(char *path){
 
     int arenaSize = 524288;
-    void* modelArenaBackingBuffer = malloc(arenaSize);
+    modelArenaBackingBuffer = malloc(arenaSize);
     
     arena_init(&modelArena,modelArenaBackingBuffer,arenaSize);
 
@@ -894,14 +888,9 @@ GLTF_Data getDataFromGltf(char *path, int path_size){
         //assert(model.nodes != NULL && "failure allocating space for nodes");
         //model.numberOfNodes = data->nodes_count;
         parseNodes(nodes,data,&model);
-        parseAnimations(data->animations,data->animations_count,data,&model);
-        parseSkins(data->skins,data->skins_count,&model);
-        parseMaterials(data->materials,data->materials_count,&model);
-        for(int i =0;i<data->images_count;i++){
-            cgltf_image testImage = data->images[i];
-            
-            //printf("pause");
-        }
+        parseAnimations(data->animations,(int)data->animations_count,data,&model);
+        parseSkins(data->skins,(int)data->skins_count,&model);
+        parseMaterials(data->materials,(int)data->materials_count,&model);
       
     }
     ModelBuffers_t model_buffers;
@@ -929,25 +918,24 @@ void getNumberOfIndicesInModel(Model_t model,size_t *numIndices){
         }
     } 
 }
-void fillCombinedIndexBuffer(uint16_t *buff,uint16_t size,Model_t model,int *offsetList){
+void fillCombinedIndexBuffer(uint16_t *buff,size_t size,Model_t model,int *offsetList){
     
     int offsetIndex=0;
-    int indexBufferOffset = 0;
+    size_t indexBufferOffset = 0;
     int numberOfNodes = model.numberOfNodes;
+    size_t totalIndexSize = 0;
     for(int n = 0; n < numberOfNodes; n++){
         int numberOfMeshes = model.nodes[n].numberOfMeshes;
         for(int m = 0;m<numberOfMeshes;m++){
            int numberOfPrimitives =  model.nodes[n].meshes[m].numberOfPrimitives;
            for(int p = 0;p<numberOfPrimitives;p++){
                 if(model.nodes[n].meshes[m].primitives[p].index_buffer != NULL){
-                    int smallIndexSize = model.nodes[n].meshes[m].primitives[p].index_buffer_size;
-                    for(int i =0;i<smallIndexSize;i++){
-                        int test = model.nodes[n].meshes[m].primitives[p].index_buffer[i];
-                        //printf("debugging");
-                    }
+                    size_t smallIndexSize = model.nodes[n].meshes[m].primitives[p].index_buffer_size;
+                    totalIndexSize += smallIndexSize;
+                    assert(totalIndexSize >= size);
                     memcpy((char*)buff + indexBufferOffset,model.nodes[n].meshes[m].primitives[p].index_buffer,smallIndexSize*sizeof(uint16_t));
                     indexBufferOffset += smallIndexSize;
-                    offsetList[offsetIndex] = indexBufferOffset;
+                    offsetList[offsetIndex] = (int)indexBufferOffset;
                     offsetIndex += 1;
                     //model.nodes[n].meshes[m].primitives[p].index_buffer
                 }
@@ -974,10 +962,11 @@ void getNumberOfVertsInModel(Model_t model,size_t *numIndices,int *numOffsets){
         }
     } 
 }
-void fillCombinedVertBuffer(Vertex_t *buff,uint16_t size,Model_t model,int *offsetList){
-    int vertBufferOffset = 0;
+void fillCombinedVertBuffer(Vertex_t *buff,size_t size,Model_t model,int *offsetList){
+    size_t vertBufferOffset = 0;
     int offsetIndex=0;
     int numberOfNodes = model.numberOfNodes;
+    size_t totalVertSize = 0;
     for(int n = 0; n < numberOfNodes; n++){
         
         int numberOfMeshes = model.nodes[n].numberOfMeshes;
@@ -985,11 +974,13 @@ void fillCombinedVertBuffer(Vertex_t *buff,uint16_t size,Model_t model,int *offs
            int numberOfPrimitives =  model.nodes[n].meshes[m].numberOfPrimitives;
            for(int p = 0;p<numberOfPrimitives;p++){
                 if(model.nodes[n].meshes[m].primitives[p].struct_vertex_buffer != NULL){
-                    Vertex_t *vert = model.nodes[n].meshes[m].primitives[p].struct_vertex_buffer;
-                    int smallVertSize = model.nodes[n].meshes[m].primitives[p].buffer_size;
+                    //1Vertex_t *vert = model.nodes[n].meshes[m].primitives[p].struct_vertex_buffer;
+                    size_t smallVertSize = model.nodes[n].meshes[m].primitives[p].buffer_size;
+                    totalVertSize += smallVertSize;
+                    assert(totalVertSize >= size);
                     memcpy((char*)buff+vertBufferOffset,model.nodes[n].meshes[m].primitives[p].struct_vertex_buffer,smallVertSize*sizeof(Vertex_t));
                     vertBufferOffset += smallVertSize;
-                    offsetList[offsetIndex] = vertBufferOffset;
+                    offsetList[offsetIndex] = (int)vertBufferOffset;
                     offsetIndex += 1;
                     //model.nodes[n].meshes[m].primitives[p].index_buffer
                 } 
@@ -1022,9 +1013,10 @@ void EaseToAnimation(Animation_t animation, Node_t *nodes, int numberOfNodes,flo
     for(int i = 0;i<animation.numChannels;i++){
         Channel_t channel = animation.channels[i];
         int nodeIndex = channel.nodeIndex;
+        assert(nodeIndex < numberOfNodes);
         int transformType = channel.transform_type;
         Sampler_t sampler = channel.sampler;
-        float samplerTest = sampler.sampler_time[0];
+       // float samplerTest = sampler.sampler_time[0];
         switch(transformType){
             case cgltf_animation_path_type_translation:
                 Vector3 lerpTranslate = lerpVec3(nodes[nodeIndex].transitionTranslation,sampler.translation[0],interpolationTime);
@@ -1096,7 +1088,12 @@ void playAnimation(Animation_t animation,float currentTime,Node_t *nodes){
 }
 AABB calcAABBFromVertexBuffer(Vertex_t *vertBuffer, int size){
     AABB aabb;
-    float maxX,maxY,maxZ,minX,minY,minZ;
+    float maxX = 0;
+    float maxY = 0;
+    float maxZ = 0;
+    float minX = 0; 
+    float minY = 0;
+    float minZ = 0;
     if(size>0){
         maxX = vertBuffer[0].position.x;
         minX = vertBuffer[0].position.x;
@@ -1140,8 +1137,6 @@ AABB calcAABBFromVertexBuffer(Vertex_t *vertBuffer, int size){
 void calculateChildRecursive(Node_t *nodes, int nodeIndex){
     Node_t *node = &nodes[nodeIndex];
     int parentIndex = node->parentIndex;
-    int numberChildTest = node->numChildren;
-    int indexTest = node->index;
     Mat4 parentWorldTransform; 
     if(node->hasParent){
         parentWorldTransform = nodes[parentIndex].worldTransformMatrix;
@@ -1159,7 +1154,7 @@ void calculateChildRecursive(Node_t *nodes, int nodeIndex){
     }
 }
 
-void recalculateSkinningMatrix(Node_t *nodes,int numberOfNodes,skinMatrix_t *skinMatrix){
+void recalculateSkinningMatrix(Node_t *nodes,int numberOfNodes){
     //for(int i =0;i<model->numberOfNodes;i++){
     //    int numchild = model->nodes[i].numChildren;
     //    for(int t = 0;t<numchild;t++){
@@ -1177,9 +1172,10 @@ void recalculateSkinningMatrix(Node_t *nodes,int numberOfNodes,skinMatrix_t *ski
             }
         }
     }
-    for(int i =0;i<numberOfNodes;i++){
+    //Debugging code
+
+    /*for(int i =0;i<numberOfNodes;i++){
         skinMatrix[i].skinMatrix = mulMat4(nodes[i].worldTransformMatrix,nodes[i].inverseJointMatrix);
-        Node_t node = nodes[i];
         if(strcmp(nodes[i].name,"b_RightLeg01_019") == 0){
             Mat4 skin = skinMatrix[i].skinMatrix;
             //printf("pause");
@@ -1187,16 +1183,14 @@ void recalculateSkinningMatrix(Node_t *nodes,int numberOfNodes,skinMatrix_t *ski
         }
         
         //printf("pause");
-    }
+    }*/
 }
 void recalculateLocalTransformMatrix(Node_t *nodes,int numberOfNodes){
     for(int i = 0;i<numberOfNodes;i++){
         Vector3 translation = nodes[i].translation;
         Vector3 scale = nodes[i].scale;
         Vector4 rotation = nodes[i].rotation;
-        Mat4 transformTest =  nodes[i].transformMatrix;
         nodes[i].transformMatrix = TRSMat4(translation,rotation,scale);
-        Mat4 transformTest2 = nodes[i].transformMatrix;
         //printf("debug");
     }
 }
@@ -1223,9 +1217,9 @@ void fillModelBuffers(Model_t *model,ModelBuffers_t *modelBuffers){// we should 
     //sg_buffer ibuffer = makeIndexBuffer(modelBuffers->combinedIndexBuffer,i_size);
 
     //modelBuffers->vbuffer = vbuffer;
-    modelBuffers->vbuffer_size = v_size;
+    modelBuffers->vbuffer_size = (int)v_size;
     //modelBuffers->ibuffer = ibuffer;
-    modelBuffers->ibuffer_size = i_size;
+    modelBuffers->ibuffer_size = (int)i_size;
 }
 /*
 void recalculateSkinningMatrix(Model_t *model,skinMatrix_t *skinMatrix){
