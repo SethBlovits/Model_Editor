@@ -22,16 +22,16 @@ slg_shader get_shader_from_registry(char* shader_name);
 
 void init_shader_registry(){
     int shader_registry_count = 4;
-	shader_registry[0] = (shader_registry_entry){"imgui_hlsl.h",IMGUI_SHADER_DESC};
-	shader_registry[1] = (shader_registry_entry){"offscreen_pass_hlsl.h",OFFSCREEN_PASS_SHADER_DESC};
-	shader_registry[2] = (shader_registry_entry){"ubershader_hlsl.h",UBERSHADER_SHADER_DESC};
-	shader_registry[3] = (shader_registry_entry){"ubshader_debug_hlsl.h",UBSHADER_DEBUG_SHADER_DESC};
+	shader_registry[0] = (shader_registry_entry){"imgui.hlsl",IMGUI_SHADER_DESC};
+	shader_registry[1] = (shader_registry_entry){"offscreen_pass.hlsl",OFFSCREEN_PASS_SHADER_DESC};
+	shader_registry[2] = (shader_registry_entry){"ubershader.hlsl",UBERSHADER_SHADER_DESC};
+	shader_registry[3] = (shader_registry_entry){"ubshader_debug.hlsl",UBSHADER_DEBUG_SHADER_DESC};
     for(int i = 0;i<shader_registry_count;i++){
     	shader_registry[i].shd = slg_make_shader(&shader_registry[i].shader_desc);
     }
 }
 slg_shader get_shader_from_registry(char* shader_name){
-    int shader_registry_count = 0;
+    int shader_registry_count = 4;
     for(int i = 0;i<shader_registry_count;i++){
         if(!strcmp(shader_registry[i].hlsl_filename,shader_name)){
             return shader_registry[i].shd;

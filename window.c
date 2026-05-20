@@ -205,6 +205,8 @@ uint8_t gltf_load_arena_backing_buffer[1048576]; //1 Megabyte of scratch space;
 Arena char_buffer_arena;
 uint8_t char_buffer_arena_backing_buffer[1048576]; //1 Megabyte of scratch space;
 
+Arena asset_arena;
+uint8_t asset_arena_backing_buffer[1048576];
 Vertex* fox_vertex;
 size_t fox_vertex_size;  
 uint16_t* fox_index;
@@ -222,6 +224,8 @@ void init(){
 
     arena_init(&char_buffer_arena,char_buffer_arena_backing_buffer,sizeof(char_buffer_arena_backing_buffer));
     char_buffer_arena.name = "char_buffer_arena";
+
+    arena_init(&asset_arena,asset_arena_backing_buffer,1048576);
     //slg_arena.name = "main_arena";
     slg_d3d12_state.appdata.width = APP_WIDTH;
     slg_d3d12_state.appdata.height = APP_HEIGHT;
@@ -233,8 +237,11 @@ void init(){
     init_shader_registry();
     //I think we need to go and init all the shaders here and have a list of them?
     //DEMO CUBE RESOURCES
-
-    load_asset("C:\\MaterialEditor\\fox.asset",MAX_PATH);
+    Allocator_t asset_allocator = (Allocator_t){
+        .allocator = (void*)&asset_arena,
+        .func = arena_AllocFunc
+    };
+    Object_t fox_object = load_asset("C:\\MaterialEditor\\fox.asset",&asset_allocator);
     Vertex cubeVertices[] = {
        // Front face (-Z)  normal = 0, 0, -1
     { {-1,-1,-1}, { 0, 0,-1}, {0,1} },

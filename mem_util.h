@@ -1,3 +1,5 @@
+//What if I just called this library braniac
+
 #ifndef MEM_UTIL_H
 #define MEM_UTIL_H
 
@@ -22,6 +24,15 @@
 #endif
 
 typedef void* (*AllocFunc)(void* allocator,size_t size);
+typedef enum{
+    ALLOCATOR_TYPE_DEFAULT = 0,
+    ALLOCATOR_TYPE_ARENA = 1,
+    ALLOCATOR_TYPE_POOL = 2
+}ALLOCATOR_TYPE;
+typedef struct{
+    ALLOCATOR_TYPE alloc_type;
+    void* allocator;
+}allocator_desc;
 typedef struct{
 
     void* allocator; // this is whatever container/allocator you want. (Arena,Pool,etc)
@@ -33,6 +44,7 @@ Allocator_t default_allocator = {
     .allocator = NULL,
     .func = (AllocFunc)malloc
 };
+
 typedef struct{
     uint8_t *buffer; //holds on to bytes --> uint8_t = a byte
     size_t buffer_length;  //how long the buffer is
@@ -218,5 +230,14 @@ bool pool_is_chunk_allocated(Pool *pool, void* chunk){
     }
     return true;
 }
+
+
+void* arena_AllocFunc(void* allocator, size_t size){
+    Arena* arena = (Arena*)allocator;
+    return arena_alloc(arena,size);
+ //   alloc->func(,);
+}
+
+
 #endif
 #endif
