@@ -852,7 +852,7 @@ void parseMaterials(cgltf_material *materials, int numMaterials,Model_t *model){
 //instead of passing in an index to the file in an already created list we can just pass in the path because that's how i will be using this now
 GLTF_Data getDataFromGltf(char *path){
 
-    int arenaSize = 524288;
+    int arenaSize = 52428800;
     modelArenaBackingBuffer = malloc(arenaSize);
     
     arena_init(&modelArena,modelArenaBackingBuffer,arenaSize);
@@ -932,7 +932,7 @@ void fillCombinedIndexBuffer(uint16_t *buff,size_t size,Model_t model,int *offse
                 if(model.nodes[n].meshes[m].primitives[p].index_buffer != NULL){
                     size_t smallIndexSize = model.nodes[n].meshes[m].primitives[p].index_buffer_size;
                     totalIndexSize += smallIndexSize;
-                    assert(totalIndexSize >= size);
+                    //assert(totalIndexSize >= size);
                     memcpy((char*)buff + indexBufferOffset,model.nodes[n].meshes[m].primitives[p].index_buffer,smallIndexSize*sizeof(uint16_t));
                     indexBufferOffset += smallIndexSize;
                     offsetList[offsetIndex] = (int)indexBufferOffset;
@@ -977,11 +977,11 @@ void fillCombinedVertBuffer(Vertex_t *buff,size_t size,Model_t model,int *offset
                     //1Vertex_t *vert = model.nodes[n].meshes[m].primitives[p].struct_vertex_buffer;
                     size_t smallVertSize = model.nodes[n].meshes[m].primitives[p].buffer_size;
                     totalVertSize += smallVertSize;
-                    assert(totalVertSize >= size);
-                    memcpy((char*)buff+vertBufferOffset,model.nodes[n].meshes[m].primitives[p].struct_vertex_buffer,smallVertSize*sizeof(Vertex_t));
-                    vertBufferOffset += smallVertSize;
+                    //assert(totalVertSize >= size);
                     offsetList[offsetIndex] = (int)vertBufferOffset;
                     offsetIndex += 1;
+                    memcpy((char*)buff+vertBufferOffset,model.nodes[n].meshes[m].primitives[p].struct_vertex_buffer,smallVertSize*sizeof(Vertex_t));
+                    vertBufferOffset += smallVertSize;
                     //model.nodes[n].meshes[m].primitives[p].index_buffer
                 } 
            }
@@ -1102,8 +1102,17 @@ AABB calcAABBFromVertexBuffer(Vertex_t *vertBuffer, int size){
         maxZ = vertBuffer[0].position.z;
         minZ = vertBuffer[0].position.z;
     }
-
+    for(int i = 0; i < size; i++){
+        float y = vertBuffer[i].position.y;
+        if(isinf(y) || isnan(y)){
+            printf("Bad vertex at index %d: y = %f\n", i, y);
+            break;
+        }
+    }
     for(int i = 0;i<size;i++){
+        if(i == size -2){
+            int break_point = 0;
+        }
         if(vertBuffer[i].position.x<minX){
             minX = vertBuffer[i].position.x;
         }
@@ -1122,6 +1131,8 @@ AABB calcAABBFromVertexBuffer(Vertex_t *vertBuffer, int size){
         if(vertBuffer[i].position.z>maxZ){
             maxZ = vertBuffer[i].position.z;
         }
+        printf("at index %d, the vert position is %.2f,%.2f,%.2f\n",i,vertBuffer[i].position.x,vertBuffer[i].position.y,vertBuffer[i].position.z);
+        
     }
     aabb.xmax = maxX;
     aabb.xmin = minX;
@@ -1194,6 +1205,8 @@ void recalculateLocalTransformMatrix(Node_t *nodes,int numberOfNodes){
         //printf("debug");
     }
 }
+//This code doesn't work when there's offsets into the model. It just doesn't
+//It only works when there are simple models with just one offset,
 void fillModelBuffers(Model_t *model,ModelBuffers_t *modelBuffers){// we should use memory arenas here
     size_t v_size;
     modelBuffers->numOffsets=0;

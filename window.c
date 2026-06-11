@@ -35,8 +35,8 @@
 
 
 
-#define APP_WIDTH 1920
-#define APP_HEIGHT 1080
+#define APP_WIDTH 1920.0f
+#define APP_HEIGHT 1080.0f
 
 //struct to hold the spacing for all the options in the parameter panel
 
@@ -200,7 +200,7 @@ slg_pipeline debug_pipeline;
 slg_bindings debug_bindings;
 
 Arena gltf_load_arena;
-uint8_t gltf_load_arena_backing_buffer[1048576]; //1 Megabyte of scratch space;
+uint8_t gltf_load_arena_backing_buffer[10485760]; //1 Megabyte of scratch space;
 
 Arena char_buffer_arena;
 uint8_t char_buffer_arena_backing_buffer[1048576]; //1 Megabyte of scratch space;
@@ -219,7 +219,7 @@ void init(){
     //uint8_t arena_backingBuffer[131072];
     //arena_init(&slg_arena,arena_backingBuffer,131072);
     
-    arena_init(&gltf_load_arena,gltf_load_arena_backing_buffer,1048576);
+    arena_init(&gltf_load_arena,gltf_load_arena_backing_buffer,10485760);
     gltf_load_arena.name = "gltf_arena";
 
     arena_init(&char_buffer_arena,char_buffer_arena_backing_buffer,sizeof(char_buffer_arena_backing_buffer));
@@ -656,7 +656,8 @@ void load_gltf(char* path, int path_size){
     if(!flags.has_albedo){
         albedo_used = default_texture;
     } 
-    else{
+    albedo_used = default_texture;
+    /*else{
         int png_width, png_height, num_channels;
         const int desired_channels = 4;
         pixels_albedo = stbi_load(gltf_model.model.materials[0].baseColorUri,&png_width,&png_height,&num_channels,desired_channels);
@@ -670,7 +671,7 @@ void load_gltf(char* path, int path_size){
         });
 
         stbi_image_free(pixels_albedo);
-    }
+    }*/
     object_data.albedo = albedo_used;
     //work around to fix incorrect directory issue
     app_reset_working_directory();
@@ -1136,6 +1137,7 @@ void frame(){
             app_open_file_dialog(path,MAX_PATH);
             load_gltf(path,MAX_PATH);
             animation_window.window_enabled = true;
+            
             
             
         }
